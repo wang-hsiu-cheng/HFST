@@ -1,0 +1,32 @@
+services:
+  hfst:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+      args:
+        USERNAME: ted
+    image: tedwang2/hfst:1.0
+    container_name: hfst
+    stdin_open: true
+    tty: true
+    privileged: true
+    stop_grace_period: 1s
+    network_mode: host
+    working_dir: /home/HFST
+    environment:
+      - DISPLAY=host.docker.internal:0.0
+      - XAUTHORITY=/root/.Xauthority
+    volumes:
+      # Mount X11 server
+      - /d/.Xauthority:/root/.Xauthority
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Direct Rendering Infrastructure
+      - /dev:/dev
+      # Mount local timezone into container.
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      # Mount app resources into container.
+      - ../:/home/HFST
+
+    command: /bin/bash
