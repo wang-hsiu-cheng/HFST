@@ -15,17 +15,17 @@
 class TaifexOrderUtility 
 {
 public:
-    void TMPHdrSet(TMPhdr_t* hdr, uint16_t msgType, uint16_t msgLen);
+    void FIXHdrSet(FIXhdr_t* hdr, uint16_t msgType, uint16_t msgLen);
 
-    void TMPSetCheckSum(uint8_t* checksum, const void* data, size_t size);
+    void FIXSetCheckSum(uint8_t* checksum, const void* data, size_t size);
 
-    int GetMsgLen(TMPhdr_t* hdr);
+    int GetMsgLen(FIXhdr_t* hdr);
 
-    char* TMPTimeToString(time_t curSec);
+    char* FIXTimeToString(time_t curSec);
 
     char* GetTimeStr(time_t msg_time_sec, uint16_t msg_time_ms);
     
-    void PrintTMPPkt(FILE* fptr, const void* data);
+    void PrintFIXPkt(FILE* fptr, const void* data);
     void HexDump(FILE *fptr, const char *desc, void *addr, int len);
     
 private:

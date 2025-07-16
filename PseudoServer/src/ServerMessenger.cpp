@@ -1,145 +1,182 @@
 #include "ServerMessenger.h"
 
-int ServerMessenger::MakeL10(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code)
+int ServerMessenger::MakeA(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code)
 {
-    TMP_L10_t *p = (TMP_L10_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L10, sizeof(TMP_L10_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_A_t *p = (FIX_A_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_A, sizeof(FIX_A_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
     p->start_in_bound_num = 0;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L10_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_A_t));
 
-    return sizeof(TMP_L10_t);
+    return sizeof(FIX_A_t);
 }
 
-int ServerMessenger::MakeL30(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint32_t endOutBoundNum) 
+int ServerMessenger::Make0(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint32_t endOutBoundNum) 
 {
-    TMP_L30_t *p = (TMP_L30_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L30, sizeof(TMP_L30_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_0_t *p = (FIX_0_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_0, sizeof(FIX_0_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
     p->end_in_bound_num = endOutBoundNum;
     p->EncryptMethod = 0;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L30_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_0_t));
 
-    return sizeof(TMP_L30_t);
+    return sizeof(FIX_0_t);
 }
 
-int ServerMessenger::MakeL41(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint32_t fileSize, const std::vector<char>& data, bool isEof) 
+int ServerMessenger::Make1(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint32_t fileSize, const std::vector<char>& data, bool isEof) 
 {
-    TMP_L41_t *p = (TMP_L41_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L41, sizeof(TMP_L41_t) + data.size());
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_1_t *p = (FIX_1_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_1, sizeof(FIX_1_t) + data.size());
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
     p->is_eof = isEof ? 1 : 0;
     p->file_size = fileSize;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L41_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_1_t));
     memcpy(p->data, data.data(), data.size());
 
-    return sizeof(TMP_L41_t) + data.size();
+    return sizeof(FIX_1_t) + data.size();
 }
 
-int ServerMessenger::MakeL50(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt) 
+int ServerMessenger::Make2(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt) 
 {
-    TMP_L50_t *p = (TMP_L50_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L50, sizeof(TMP_L50_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_2_t *p = (FIX_2_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_2, sizeof(FIX_2_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
     p->HeartBtInt = HeartBtInt;
     p->max_flow_ctrl_cnt = max_flow_ctrl_cnt;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L50_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_2_t));
     
-    return sizeof(TMP_L50_t);
+    return sizeof(FIX_2_t);
 }
 
-int ServerMessenger::MakeR12(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code) 
+int ServerMessenger::Make3(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
 {
-    TMP_R12_t *p = (TMP_R12_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_R12, sizeof(TMP_R12_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_3_t *p = (FIX_3_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_3, sizeof(FIX_3_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_R12_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_3_t));
 
-    return sizeof(TMP_R12_t);
+    return sizeof(FIX_3_t);
 }
 
-int ServerMessenger::MakeR04(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code) 
+int ServerMessenger::Make4(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
 {
-    TMP_R04_t *p = (TMP_R04_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_R04, sizeof(TMP_R04_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_4_t *p = (FIX_4_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_4, sizeof(FIX_4_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_R04_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_4_t));
 
-    return sizeof(TMP_R04_t);
+    return sizeof(FIX_4_t);
 }
 
-int ServerMessenger::MakeR05(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code) 
+int ServerMessenger::Make5(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
 {
-    TMP_R05_t *p = (TMP_R05_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_R05, sizeof(TMP_R05_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_5_t *p = (FIX_5_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_5, sizeof(FIX_5_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_R05_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_5_t));
 
-    return sizeof(TMP_R05_t);
+    return sizeof(FIX_5_t);
 }
 
-int ServerMessenger::MakeL20(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code) 
+int ServerMessenger::MakeD(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
 {
-    TMP_L20_t *p = (TMP_L20_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L20, sizeof(TMP_L20_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_D_t *p = (FIX_D_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_D, sizeof(FIX_D_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L20_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_D_t));
 
-    return sizeof(TMP_L20_t);
+    return sizeof(FIX_D_t);
 }
 
-int ServerMessenger::MakeL40(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint16_t append_no) 
+int ServerMessenger::MakeF(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint16_t append_no) 
 {
-    TMP_L40_t *p = (TMP_L40_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L40, sizeof(TMP_L40_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_F_t *p = (FIX_F_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_F, sizeof(FIX_F_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    TMPSET_UINT16(p->append_no, append_no);
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L40_t));
+    FIXSET_UINT16(p->append_no, append_no);
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_F_t));
 
-    return sizeof(TMP_L40_t);
+    return sizeof(FIX_F_t);
 }
 
-int ServerMessenger::MakeL60(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code) 
+int ServerMessenger::MakeG(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint16_t append_no) 
 {
-    TMP_L60_t *p = (TMP_L60_t *)buf;
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_L60, sizeof(TMP_L60_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_G_t *p = (FIX_G_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_G, sizeof(FIX_G_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
-    util.TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L60_t));
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_G_t));
 
-    return sizeof(TMP_L60_t);
+    return sizeof(FIX_G_t);
 }
 
-int ServerMessenger::IsRecvL10(uint8_t *buf)
+int ServerMessenger::MakeH(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
 {
-    TMP_L10_t *p = (TMP_L10_t *)buf;
+    FIX_H_t *p = (FIX_H_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_H, sizeof(FIX_H_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
+    p->status_code = status_code;
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_H_t));
+
+    return sizeof(FIX_H_t);
+}
+
+int ServerMessenger::Make8(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
+{
+    FIX_8_t *p = (FIX_8_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_8, sizeof(FIX_8_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
+    p->status_code = status_code;
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_8_t));
+
+    return sizeof(FIX_8_t);
+}
+
+int ServerMessenger::Make9(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
+{
+    FIX_9_t *p = (FIX_9_t *)buf;
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_9, sizeof(FIX_9_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
+    p->status_code = status_code;
+    util.FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_9_t));
+
+    return sizeof(FIX_9_t);
+}
+
+char ServerMessenger::SearchMsgType(uint8_t *buf)
+{
+    FIX_L10_t *p = (FIX_L10_t *)buf;
 
     int st = 0;
+    char MsgType;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_L10_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L10_t));
 
-    if(type != TMPMsgType_L10)
+    if(type != FIXMsgType_L10)
     {
         printf("Not recv L10, recved %d\n", type);
         st++;
@@ -157,20 +194,20 @@ int ServerMessenger::IsRecvL10(uint8_t *buf)
         st++;
     }
 
-    return st;
+    return MsgType;
 }
 
 int ServerMessenger::IsRecvL20(uint8_t *buf)
 {
-    TMP_L20_t *p = (TMP_L20_t *)buf;
+    FIX_L20_t *p = (FIX_L20_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_L20_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L20_t));
 
-    if(type != TMPMsgType_L20)
+    if(type != FIXMsgType_L20)
     {
         printf("Not recv L20, recved %d\n", type);
         st++;
@@ -193,15 +230,15 @@ int ServerMessenger::IsRecvL20(uint8_t *buf)
 
 int ServerMessenger::IsRecvL40(uint8_t *buf)
 {
-    TMP_L40_t *p = (TMP_L40_t *)buf;
+    FIX_L40_t *p = (FIX_L40_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_L40_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L40_t));
 
-    if(type != TMPMsgType_L40)
+    if(type != FIXMsgType_L40)
     {
         printf("Not recv L40, recved %d\n", type);
         st++;
@@ -224,15 +261,15 @@ int ServerMessenger::IsRecvL40(uint8_t *buf)
 
 int ServerMessenger::IsRecvL42(uint8_t *buf)
 {
-    TMP_L42_t *p = (TMP_L42_t *)buf;
+    FIX_L42_t *p = (FIX_L42_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_L42_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L42_t));
 
-    if(type != TMPMsgType_L42)
+    if(type != FIXMsgType_L42)
     {
         printf("Not recv L42, recved %d\n", type);
         st++;
@@ -255,15 +292,15 @@ int ServerMessenger::IsRecvL42(uint8_t *buf)
 
 int ServerMessenger::IsRecvL60(uint8_t *buf)
 {
-    TMP_L60_t *p = (TMP_L60_t *)buf;
+    FIX_L60_t *p = (FIX_L60_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_L60_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L60_t));
 
-    if(type != TMPMsgType_L60)
+    if(type != FIXMsgType_L60)
     {
         printf("Not recv L60, recved %d\n", type);
         st++;
@@ -286,15 +323,15 @@ int ServerMessenger::IsRecvL60(uint8_t *buf)
 
 int ServerMessenger::IsRecvR11(uint8_t *buf)
 {
-    TMP_R11_t *p = (TMP_R11_t *)buf;
+    FIX_R11_t *p = (FIX_R11_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_R11_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_R11_t));
 
-    if(type != TMPMsgType_R11)
+    if(type != FIXMsgType_R11)
     {
         printf("Not recv R11, recved %d\n", type);
         st++;
@@ -317,15 +354,15 @@ int ServerMessenger::IsRecvR11(uint8_t *buf)
 
 int ServerMessenger::IsRecvR05(uint8_t *buf)
 {
-    TMP_R05_t *p = (TMP_R05_t *)buf;
+    FIX_R05_t *p = (FIX_R05_t *)buf;
 
     int st = 0;
     unsigned char Checksum;
-    uint8_t type = TMPGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = TMPGET_UINT8(p->status_code);
-    util.TMPSetCheckSum(&Checksum, (void*)buf, sizeof(TMP_R05_t));
+    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
+    uint8_t status_code = FIXGET_UINT8(p->status_code);
+    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_R05_t));
 
-    if(type != TMPMsgType_R05)
+    if(type != FIXMsgType_R05)
     {
         printf("Not recv R05, recved %d\n", type);
         st++;

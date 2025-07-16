@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <mutex>
 #include <thread>
+#include <chrono>
 #include <map>
 
 #include "TaifexOrder.h"
@@ -46,7 +47,6 @@ public:
 	int RecvSinglePacket(char* outputBuffer, unsigned int flags = 0);
 
     int SendPacket(uint8_t *buf, int len);
-
 
 private:
 	int m_sockfd;
@@ -111,18 +111,19 @@ public:
     int GetRecvR05Cnt() const { return m_recv_r05_cnt; }
     int GetSentR02Cnt() const { return m_sent_r02_cnt; }
     int GetSentR03Cnt() const { return m_sent_r03_cnt; }
-    int GetSentR04Cnt() const { return m_sent_r04_cnt; }
+    int GetSent0Cnt() const { return m_sent_0_cnt; }
 
-    std::vector<TMP_R01_t>* GetR01Vec() { return &m_vec_r01; }
-    std::vector<TMP_R09_t>* GetR09Vec() { return &m_vec_r09; }
-    std::vector<TMP_R02_t>* GetR02Vec() { return &m_vec_r02; }
-    std::vector<TMP_R03_t>* GetR03Vec() { return &m_vec_r03; }
+    std::vector<FIX_R01_t>* GetR01Vec() { return &m_vec_r01; }
+    std::vector<FIX_R09_t>* GetR09Vec() { return &m_vec_r09; }
+    std::vector<FIX_R02_t>* GetR02Vec() { return &m_vec_r02; }
+    std::vector<FIX_R03_t>* GetR03Vec() { return &m_vec_r03; }
 
 private:
     int m_sockfd;
     int m_port;
     int m_expectedSessions;
     std::string m_server_ip;
+    bool isLogon = false;
 
     std::vector<std::shared_ptr<Session>> m_vec_sessions;
     std::vector<std::thread> m_vec_threads;
@@ -131,8 +132,8 @@ private:
     ServerMessenger m_messenger;
     TaifexORGenerator m_repor_generator;
 
-    std::map<int, uint16_t> m_map_idx_fcmid;
-    std::map<int, uint16_t> m_map_idx_session_id;
+    std::map<int, uint16_t> m_map_idx_target_id;
+    std::map<int, uint16_t> m_map_idx_sender_id;
     std::map<uint16_t, int> m_map_session_id_sockkfd;
 
     bool m_en_hb = false;
@@ -143,17 +144,17 @@ private:
 
     int m_sent_r02_cnt = 0;
     int m_sent_r03_cnt = 0;
-    int m_sent_r04_cnt = 0;
+    int m_sent_0_cnt = 0;
 
     int m_report_delay_us = 5;
 
     int m_heartbeat_interval_sec = 30;
 
-    std::vector<TMP_R01_t> m_vec_r01;
-    std::vector<TMP_R09_t> m_vec_r09;
+    std::vector<FIX_R01_t> m_vec_r01;
+    std::vector<FIX_R09_t> m_vec_r09;
 
-    std::vector<TMP_R02_t> m_vec_r02;
-    std::vector<TMP_R03_t> m_vec_r03;
+    std::vector<FIX_R02_t> m_vec_r02;
+    std::vector<FIX_R03_t> m_vec_r03;
 };
 
 #endif

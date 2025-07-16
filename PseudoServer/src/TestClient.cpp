@@ -1,13 +1,13 @@
 #include <TestClient.h>
 
-void Client::TMPHdrSet(TMPhdr_t* hdr, uint16_t msgType, uint16_t msgLen)
+void Client::FIXHdrSet(FIXhdr_t* hdr, uint16_t msgType, uint16_t msgLen)
 {
-    TMPSET_MSGLEN(hdr->msg_length, msgLen);
-	TMPSET_UINT8(hdr->MessageType, msgType);
-	TMPSET_INT32(hdr->msg_time.epoch_s, time(NULL));
+    FIXSET_MSGLEN(hdr->msg_length, msgLen);
+	FIXSET_UINT8(hdr->MessageType, msgType);
+	FIXSET_INT32(hdr->SendingTime.epoch_s, time(NULL));
 }
 
-void Client::TMPSetCheckSum(uint8_t *checksum, const void *data, size_t size)
+void Client::FIXSetCheckSum(uint8_t *checksum, const void *data, size_t size)
 {
     char *ptr = (char *)data;
 	char *End = ptr + size - 1;
@@ -20,17 +20,17 @@ void Client::TMPSetCheckSum(uint8_t *checksum, const void *data, size_t size)
 	return;
 }
 
-int Client::MakeL10(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code)
+int Client::MakeL10(uint8_t *buf, uint16_t TargetCompID, uint16_t session_id, uint8_t status_code)
 {
-    TMP_L10_t *p = (TMP_L10_t *)buf;
-    TMPHdrSet(&p->MsgHeader, TMPMsgType_L10, sizeof(TMP_L10_t));
-    TMPSET_UINT16(p->MsgHeader.fcm_id, fcm_id);
-    TMPSET_UINT16(p->MsgHeader.session_id, session_id);
+    FIX_L10_t *p = (FIX_L10_t *)buf;
+    FIXHdrSet(&p->MsgHeader, FIXMsgType_L10, sizeof(FIX_L10_t));
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
     p->status_code = status_code;
     p->start_in_bound_num = 0;
-    TMPSetCheckSum(&p->CheckSum, (const void *)p, sizeof(TMP_L10_t));
+    FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_L10_t));
 
-    return sizeof(TMP_L10_t);
+    return sizeof(FIX_L10_t);
 }
 
 int Client::SendPacket(uint8_t *buf, int len)
@@ -58,8 +58,8 @@ int Client::Start()
         return 1;
     }
     char *buffer;
-    MakeL10((uint8_t*)buffer, fcm_id, session_id, 0);
-    SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+    MakeL10((uint8_t*)buffer, TargetCompID, session_id, 0);
+    SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
 
     close(m_sockfd);
 

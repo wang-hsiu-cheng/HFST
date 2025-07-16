@@ -19,10 +19,10 @@ int Session::RecvSinglePacket(char* outputBuffer, unsigned int flags)
         // printf("[%d] 1 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
         if(m_currentPacketSize == 0)
         {
-            if(m_recvBufferLeftSize >= (int)sizeof(TMPhdr_t))
+            if(m_recvBufferLeftSize >= (int)sizeof(FIXhdr_t))
             {
-                TMPhdr_t* hdr = reinterpret_cast<TMPhdr_t*>(m_cur_recvBufferPtr);
-                m_currentPacketSize = TMPGET_UINT16(hdr->msg_length) + 3;
+                FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(m_cur_recvBufferPtr);
+                m_currentPacketSize = FIXGET_UINT16(hdr->msg_length) + 3;
             }
         }
         // printf("[%d] 2 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
@@ -65,7 +65,7 @@ int Session::SendPacket(uint8_t *buf, int len)
 
 /************************************ TaifexOrderServer ************************************/
 
-void TaifexOrderServer::Start()
+int TaifexOrderServer::Start()
 {
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
@@ -104,9 +104,44 @@ void TaifexOrderServer::Start()
             m_vec_sessions.push_back(session);
         }
 
+        // use a delay thread to check if logno finished in 60 seconds
+        std::thread delayed_thread([this]()
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(60000));
+            if (!isLogon)
+                return 0;
+        });
+        delayed_thread.detach();
+
         //create thread by session
         m_vec_threads.emplace_back([this, session, clientAddr]() 
         {
+            switch (current_state_) {
+                case State::Idle:
+                    if (event == Event::Start) {
+                        current_state_ = State::Running;
+                        on_enter_state("Running");
+                    }
+                    break;
+                case State::Running:
+                    if (event == Event::Pause) {
+                        current_state_ = State::Paused;
+                        on_enter_state("Paused");
+                    } else if (event == Event::Stop) {
+                        current_state_ = State::Idle;
+                        on_enter_state("Idle");
+                    }
+                    break;
+                case State::Paused:
+                    if (event == Event::Resume) {
+                        current_state_ = State::Running;
+                        on_enter_state("Running");
+                    } else if (event == Event::Stop) {
+                        current_state_ = State::Idle;
+                        on_enter_state("Idle");
+                    }
+                    break;
+            }
             // start login
             char buffer[1500] = {0};
             int recvSize = 0;
@@ -119,21 +154,21 @@ void TaifexOrderServer::Start()
                 std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
                 return;
             }
-            TMPhdr_t* hdr = reinterpret_cast<TMPhdr_t*>(buffer);
-            uint16_t fcm_id = TMPGET_UINT16(hdr->fcm_id);
-            uint16_t session_id = TMPGET_UINT16(hdr->session_id);
+            FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(buffer);
+            uint16_t TargetCompID = FIXGET_UINT16(hdr->TargetCompID);
+            uint16_t session_id = FIXGET_UINT16(hdr->session_id);
             if(m_messenger.IsRecvL10((uint8_t*)buffer) != 0)
             {
                 printf("[SERVER] port %d, session %d, recv L10 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, fcm_id, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
+                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
                 return;
             }
             printf("[SERVER] port %d, session %d, recv L10 \n", m_port, session->GetSessionNum());
             
             //Send L10
-            m_messenger.MakeL10((uint8_t*)buffer, fcm_id, session_id, 0);
-            session->SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+            m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 0);
+            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
             printf("[SERVER] port %d, session %d, send L10 \n", m_port, session->GetSessionNum());
 
             //Recv L20
@@ -146,14 +181,14 @@ void TaifexOrderServer::Start()
             if(m_messenger.IsRecvL20((uint8_t*)buffer) != 0)
             {
                 printf("[SERVER] port %d, session %d, recv L20 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, fcm_id, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
+                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
                 return;
             }
             printf("[SERVER] port %d, session %d, recv L20 \n", m_port, session->GetSessionNum());
             //Send L30
-            m_messenger.MakeL30((uint8_t*)buffer, fcm_id, session_id, 0, 0);
-            session->SendPacket((uint8_t*)buffer, sizeof(TMP_L30_t));
+            m_messenger.MakeL30((uint8_t*)buffer, TargetCompID, session_id, 0, 0);
+            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L30_t));
             printf("[SERVER] port %d, session %d, send L30 \n", m_port, session->GetSessionNum());
 
             //Recv L40
@@ -166,15 +201,15 @@ void TaifexOrderServer::Start()
             if(m_messenger.IsRecvL40((uint8_t*)buffer) != 0)
             {
                 printf("[SERVER] port %d, session %d, recv L40 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, fcm_id, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, 94);
+                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
                 return;
             }
             printf("[SERVER] port %d, session %d, recv L40 \n", m_port, session->GetSessionNum());
 
             //Send L50
-            m_messenger.MakeL50((uint8_t*)buffer, fcm_id, session_id, 0, 30, 160);
-            session->SendPacket((uint8_t*)buffer, sizeof(TMP_L50_t));
+            m_messenger.MakeL50((uint8_t*)buffer, TargetCompID, session_id, 0, 30, 160);
+            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L50_t));
 
             //Recv L60
             recvSize = session->RecvSinglePacket(buffer);
@@ -186,17 +221,19 @@ void TaifexOrderServer::Start()
             if(m_messenger.IsRecvL60((uint8_t*)buffer) != 0)
             {
                 printf("[SERVER] port %d, session %d, recv L60 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, fcm_id, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(TMP_L10_t));
+                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
+                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
                 return;
             }
             printf("[SERVER] port %d, session %d, recv L60 \n", m_port, session->GetSessionNum());
 
-            m_map_idx_fcmid[session->GetSessionNum()] = fcm_id;
-            m_map_idx_session_id[session->GetSessionNum()] = session_id;
+            m_map_idx_target_id[session->GetSessionNum()] = TargetCompID;
+            m_map_idx_sender_id[session->GetSessionNum()] = session_id;
             m_map_session_id_sockkfd[session_id] = session->GetSockfd();
 
             printf("[SERVER] port %d, session_id %d, session_idx %d, login finish\n", m_port, session_id, session->GetSessionNum());
+            SetHeartBeatIntervalInSec(hdr->HeartBtInt);
+            EnableHeartBeat();
 
             //create thread for heartbeat
             if(m_en_hb)
@@ -208,13 +245,13 @@ void TaifexOrderServer::Start()
                     {
                         sleep(m_heartbeat_interval_sec);
                         
-                        m_messenger.MakeR04((uint8_t*)buffer, m_map_idx_fcmid[session->GetSessionNum()], m_map_idx_session_id[session->GetSessionNum()], 0);
-                        session->SendPacket((uint8_t*)buffer, sizeof(TMP_R04_t));
+                        m_messenger.Make0((uint8_t*)buffer, m_map_idx_sender_id[session->GetSessionNum()], 0);
+                        session->SendPacket((uint8_t*)buffer, sizeof(FIX_t));
                         {
                             std::lock_guard<std::mutex> lock(m_sessionMutex);
-                            m_sent_r04_cnt++;
+                            m_sent_0_cnt++;
                         }
-                        printf("[SERVER][heartbeat] port %d, session %d, send R04(%d)\n", m_port, session->GetSessionNum(), m_sent_r04_cnt);
+                        printf("[SERVER][heartbeat] port %d, session %d, send R04(%d)\n", m_port, session->GetSessionNum(), m_sent_0_cnt);
                     }
                 });
                 hb_thread.detach();
@@ -231,9 +268,9 @@ void TaifexOrderServer::Start()
                     break;
                 }
 
-                TMPhdr_t* hdr = reinterpret_cast<TMPhdr_t*>(buffer);
-                uint8_t type = TMPGET_UINT8(hdr->MessageType);
-                if(type == TMPMsgType_R05)
+                FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(buffer);
+                uint8_t type = FIXGET_UINT8(hdr->MessageType);
+                if(type == FIXMsgType_R05)
                 {
                     if(m_messenger.IsRecvR05((uint8_t*)buffer) != 0)
                     {
@@ -242,60 +279,60 @@ void TaifexOrderServer::Start()
                     }
                     std::lock_guard<std::mutex> lock(m_sessionMutex);
                     m_recv_r05_cnt++;
-                    printf("### [SERVER][%s] port %d, session %d, recv R05(%d)\n", m_messenger.util.GetTimeStr(TMPGET_UINT32(hdr->msg_time.epoch_s), TMPGET_UINT16(hdr->msg_time.ms)), m_port, session->GetSessionNum(), m_recv_r05_cnt);
+                    printf("### [SERVER][%s] port %d, session %d, recv R05(%d)\n", m_messenger.util.GetTimeStr(FIXGET_UINT32(hdr->SendingTime.epoch_s), FIXGET_UINT16(hdr->SendingTime.ms)), m_port, session->GetSessionNum(), m_recv_r05_cnt);
                 }
-                else if(type == TMPMsgType_R01)
+                else if(type == FIXMsgType_R01)
                 {
                     std::lock_guard<std::mutex> lock(m_sessionMutex);
                     m_recv_r01_cnt++;
-                    m_vec_r01.push_back(*reinterpret_cast<TMP_R01_t*>(buffer));
+                    m_vec_r01.push_back(*reinterpret_cast<FIX_R01_t*>(buffer));
 
                     int r02_start = m_vec_r02.size(), r03_start = m_vec_r03.size();
-                    m_repor_generator.GenReport(reinterpret_cast<TMP_R01_t*>(buffer), m_vec_r02, m_vec_r03);
+                    m_repor_generator.GenReport(reinterpret_cast<FIX_R01_t*>(buffer), m_vec_r02, m_vec_r03);
                     for(int i = r02_start; i < (int)m_vec_r02.size(); i++)
                     {
-                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(TMP_R02_t));
+                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(FIX_R02_t));
                         usleep(m_report_delay_us);
                         m_sent_r02_cnt++;
                     }
 
                     for(int i = r03_start; i < (int)m_vec_r03.size(); i++)
                     {
-                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(TMP_R03_t));
+                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(FIX_R03_t));
                         usleep(m_report_delay_us);
                         m_sent_r03_cnt++;
                     }
 
-                    printf("### [SERVER] port %d, session_id %d, recv R01 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_session_id[session->GetSessionNum()], m_recv_r01_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
+                    printf("### [SERVER] port %d, session_id %d, recv R01 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_sender_id[session->GetSessionNum()], m_recv_r01_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
                 }
-                else if(type == TMPMsgType_R09)
+                else if(type == FIXMsgType_R09)
                 {
                     std::lock_guard<std::mutex> lock(m_sessionMutex);
                     m_recv_r09_cnt++;
-                    m_vec_r09.push_back(*reinterpret_cast<TMP_R09_t*>(buffer));
+                    m_vec_r09.push_back(*reinterpret_cast<FIX_R09_t*>(buffer));
 
                     int r02_start = m_vec_r02.size(), r03_start = m_vec_r03.size();
-                    m_repor_generator.GenReport(reinterpret_cast<TMP_R09_t*>(buffer), m_vec_r02, m_vec_r03);
+                    m_repor_generator.GenReport(reinterpret_cast<FIX_R09_t*>(buffer), m_vec_r02, m_vec_r03);
                     for(int i = r02_start; i < (int)m_vec_r02.size(); i++)
                     {
-                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(TMP_R02_t));
+                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(FIX_R02_t));
                         usleep(m_report_delay_us);
                         m_sent_r02_cnt++;
                     }
 
                     for(int i = r03_start; i < (int)m_vec_r03.size(); i++)
                     {
-                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(TMP_R03_t));
+                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(FIX_R03_t));
                         usleep(m_report_delay_us);
                         m_sent_r03_cnt++;
                     }
 
-                    printf("### [SERVER] port %d, session_id %d, recv R09 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_session_id[session->GetSessionNum()], m_recv_r09_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
+                    printf("### [SERVER] port %d, session_id %d, recv R09 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_sender_id[session->GetSessionNum()], m_recv_r09_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
                 }
                 else
                 {
                     printf("[SERVER] port %d, session %d, recv unknown type %d, ", m_port, session->GetSessionNum(), type);
-                    for(int i = 0; i < (int)sizeof(TMPhdr_t); i++)
+                    for(int i = 0; i < (int)sizeof(FIXhdr_t); i++)
                     {
                         printf("%02x", (uint8_t)buffer[i]);
                     }
@@ -309,5 +346,15 @@ void TaifexOrderServer::Start()
     {
         if (t.joinable())
             t.join();
+    }
+
+    return 0;
+}
+
+int main()
+{
+    TaifexOrderServer server("127.0.0.1", 9000, 10);
+    if (server.Start() == 0) {
+        delete.server;
     }
 }

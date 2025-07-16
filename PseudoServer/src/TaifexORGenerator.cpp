@@ -30,7 +30,7 @@ void TaifexORGenerator::SetCMID(uint16_t v)
 
 void TaifexORGenerator::SetUserDefine(char *v)
 {
-    memcpy(m_userDefine, v, TMP_UDD_LEN);
+    memcpy(m_userDefine, v, FIX_UDD_LEN);
 }
 
 void TaifexORGenerator::SetInvestorAcno(uint32_t v)
@@ -84,7 +84,7 @@ void TaifexORGenerator::SetOrderSymbols(std::vector<std::string> vec_symbols)
     m_vec_symbols = vec_symbols;
 }
 
-void TaifexORGenerator::GenSingleR01(TMP_R01_t *p, char in_execType)
+void TaifexORGenerator::GenSingleR01(FIX_R01_t *p, char in_execType)
 {
     int price = 0;
     uint16_t qty = 0;
@@ -93,20 +93,20 @@ void TaifexORGenerator::GenSingleR01(TMP_R01_t *p, char in_execType)
     std::string orderno = "";
 
     //header
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_R01, sizeof(TMP_R01_t));
-    TMPSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
-    TMPSET_UINT16(p->MsgHeader.fcm_id, m_fcmID);
-    TMPSET_UINT16(p->MsgHeader.session_id, m_vec_sessionID[rand() % m_vec_sessionID.size()]);
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_R01, sizeof(FIX_R01_t));
+    FIXSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, m_fcmID);
+    FIXSET_UINT16(p->MsgHeader.session_id, m_vec_sessionID[rand() % m_vec_sessionID.size()]);
 
     //body
     if(execType == '4')
     {
         if(m_vec_new_r01.size() > 0)
         {
-            TMP_R01_t new_order = m_vec_new_r01[rand() % m_vec_new_r01.size()];
+            FIX_R01_t new_order = m_vec_new_r01[rand() % m_vec_new_r01.size()];
             side = new_order.Side;
-            sym = std::string(new_order.sym, TMP_SYM_LEN);
-            orderno = std::string(new_order.order_no, TMP_ORDNO_LEN);
+            sym = std::string(new_order.sym, FIX_SYM_LEN);
+            orderno = std::string(new_order.order_no, FIX_ORDNO_LEN);
         }
     }
     
@@ -117,9 +117,9 @@ void TaifexORGenerator::GenSingleR01(TMP_R01_t *p, char in_execType)
         orderno = NumToOrderno(m_ordernoBeginNum++).c_str();
         sym = m_vec_symbols[rand() % m_vec_symbols.size()];
 
-        if(sym.size() < TMP_SYM_LEN)
+        if(sym.size() < FIX_SYM_LEN)
         {
-            sym.append(TMP_SYM_LEN - sym.size(), ' ');
+            sym.append(FIX_SYM_LEN - sym.size(), ' ');
         }
 
         price = (m_orderPriceBegin_d100 + rand() % (m_orderPriceEnd_d100 - m_orderPriceBegin_d100)) * 100;
@@ -127,27 +127,27 @@ void TaifexORGenerator::GenSingleR01(TMP_R01_t *p, char in_execType)
         side = rand() % 2 + 1;
     }
     
-    TMPSET_CHAR_N(&p->ExecType, &execType, 1);
-    TMPSET_UINT16(p->cm_id, m_cmID);
-    TMPSET_UINT16(p->fcm_id, m_fcmID);
-    TMPSET_CHAR_N(p->order_no, orderno.c_str(), TMP_ORDNO_LEN);
-    TMPSET_UINT32(p->ord_id, m_order_id++);
-    TMPSET_CHAR_N(p->user_define, m_userDefine, TMP_UDD_LEN);
-    p->symbol_type = TMP_SYM_TEXT;
-    TMPSET_CHAR_N(p->sym, sym.c_str(), TMP_SYM_LEN);
-    TMPSET_INT32(p->Price, price);
-    TMPSET_UINT16(p->qty, qty);
-    TMPSET_UINT32(p->investor_acno, m_investorAcno);
-    TMPSET_CHAR_N(&p->investor_flag, &m_investorFlag, 1);
+    FIXSET_CHAR_N(&p->ExecType, &execType, 1);
+    FIXSET_UINT16(p->cm_id, m_cmID);
+    FIXSET_UINT16(p->TargetCompID, m_fcmID);
+    FIXSET_CHAR_N(p->order_no, orderno.c_str(), FIX_ORDNO_LEN);
+    FIXSET_UINT32(p->ord_id, m_order_id++);
+    FIXSET_CHAR_N(p->user_define, m_userDefine, FIX_UDD_LEN);
+    p->symbol_type = FIX_SYM_TEXT;
+    FIXSET_CHAR_N(p->sym, sym.c_str(), FIX_SYM_LEN);
+    FIXSET_INT32(p->Price, price);
+    FIXSET_UINT16(p->qty, qty);
+    FIXSET_UINT32(p->investor_acno, m_investorAcno);
+    FIXSET_CHAR_N(&p->investor_flag, &m_investorFlag, 1);
     p->Side = side;
     p->OrdType = 2;
     p->TimeInForce = m_timeInForce[rand() % 3];
     p->PositionEffect = m_positionEffect;
     p->order_source = m_orderSource;
-    TMPSET_CHAR_N(p->info_source, m_infoSource, 3);
+    FIXSET_CHAR_N(p->info_source, m_infoSource, 3);
 
     //tail
-    util.TMPSetCheckSum(&p->CheckSum, (uint8_t*)p, sizeof(TMP_R01_t));
+    util.FIXSetCheckSum(&p->CheckSum, (uint8_t*)p, sizeof(FIX_R01_t));
 
 
     //keep order record
@@ -163,10 +163,10 @@ void TaifexORGenerator::GenSingleR01(TMP_R01_t *p, char in_execType)
     }
 }
 
-void TaifexORGenerator::GenR01s(std::vector<TMP_R01_t> &vec, int num)
+void TaifexORGenerator::GenR01s(std::vector<FIX_R01_t> &vec, int num)
 {
     int cnt = 0, r = 0;
-    TMP_R01_t r01;
+    FIX_R01_t r01;
     uint8_t execType = 0;
 
     while(cnt < num)
@@ -186,7 +186,7 @@ void TaifexORGenerator::GenR01s(std::vector<TMP_R01_t> &vec, int num)
     }
 }
 
-void TaifexORGenerator::GenSingleR09(TMP_R09_t *p, char in_execType)
+void TaifexORGenerator::GenSingleR09(FIX_R09_t *p, char in_execType)
 {
     int bidprice = 0;
     int offerprice = 0;
@@ -197,19 +197,19 @@ void TaifexORGenerator::GenSingleR09(TMP_R09_t *p, char in_execType)
     std::string orderno = "";
 
     //header
-    util.TMPHdrSet(&p->MsgHeader, TMPMsgType_R09, sizeof(TMP_R09_t));
-    TMPSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
-    TMPSET_UINT16(p->MsgHeader.fcm_id, m_fcmID);
-    TMPSET_UINT16(p->MsgHeader.session_id, m_vec_sessionID[rand() % m_vec_sessionID.size()]);
+    util.FIXHdrSet(&p->MsgHeader, FIXMsgType_R09, sizeof(FIX_R09_t));
+    FIXSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
+    FIXSET_UINT16(p->MsgHeader.TargetCompID, m_fcmID);
+    FIXSET_UINT16(p->MsgHeader.session_id, m_vec_sessionID[rand() % m_vec_sessionID.size()]);
 
     //body
     if(execType == '4')
     {
         if(m_vec_new_r09.size() > 0)
         {
-            TMP_R09_t new_order = m_vec_new_r09[rand() % m_vec_new_r09.size()];
-            sym = std::string(new_order.sym, TMP_SYM_LEN);
-            orderno = std::string(new_order.order_no, TMP_ORDNO_LEN);
+            FIX_R09_t new_order = m_vec_new_r09[rand() % m_vec_new_r09.size()];
+            sym = std::string(new_order.sym, FIX_SYM_LEN);
+            orderno = std::string(new_order.order_no, FIX_ORDNO_LEN);
         }
     }
     
@@ -220,9 +220,9 @@ void TaifexORGenerator::GenSingleR09(TMP_R09_t *p, char in_execType)
         orderno = NumToOrderno(m_ordernoBeginNum++).c_str();
         sym = m_vec_symbols[rand() % m_vec_symbols.size()];
 
-        if(sym.size() < TMP_SYM_LEN)
+        if(sym.size() < FIX_SYM_LEN)
         {
-            sym.append(TMP_SYM_LEN - sym.size(), ' ');
+            sym.append(FIX_SYM_LEN - sym.size(), ' ');
         }
 
         bidprice = (m_orderPriceBegin_d100 + rand() % (m_orderPriceEnd_d100 - m_orderPriceBegin_d100)) * 100;
@@ -231,27 +231,27 @@ void TaifexORGenerator::GenSingleR09(TMP_R09_t *p, char in_execType)
         offerqty = m_orderQtyBegin + rand() % (m_orderQtyEnd - m_orderQtyBegin);
     }
     
-    TMPSET_CHAR_N(&p->ExecType, &execType, 1);
-    TMPSET_UINT16(p->cm_id, m_cmID);
-    TMPSET_UINT16(p->fcm_id, m_fcmID);
-    TMPSET_CHAR_N(p->order_no, orderno.c_str(), TMP_ORDNO_LEN);
-    TMPSET_UINT32(p->ord_id, m_order_id++);
-    TMPSET_CHAR_N(p->user_define, m_userDefine, TMP_UDD_LEN);
-    p->symbol_type = TMP_SYM_TEXT;
-    TMPSET_CHAR_N(p->sym, sym.c_str(), TMP_SYM_LEN);
-    TMPSET_INT32(p->BidPx, bidprice);
-    TMPSET_INT32(p->OfferPx, offerprice);
-    TMPSET_UINT16(p->BidSize, bidqty);
-    TMPSET_UINT16(p->OfferSize, offerqty);
-    TMPSET_UINT32(p->investor_acno, m_investorAcno);
-    TMPSET_CHAR_N(&p->investor_flag, &m_investorFlag, 1);
+    FIXSET_CHAR_N(&p->ExecType, &execType, 1);
+    FIXSET_UINT16(p->cm_id, m_cmID);
+    FIXSET_UINT16(p->TargetCompID, m_fcmID);
+    FIXSET_CHAR_N(p->order_no, orderno.c_str(), FIX_ORDNO_LEN);
+    FIXSET_UINT32(p->ord_id, m_order_id++);
+    FIXSET_CHAR_N(p->user_define, m_userDefine, FIX_UDD_LEN);
+    p->symbol_type = FIX_SYM_TEXT;
+    FIXSET_CHAR_N(p->sym, sym.c_str(), FIX_SYM_LEN);
+    FIXSET_INT32(p->BidPx, bidprice);
+    FIXSET_INT32(p->OfferPx, offerprice);
+    FIXSET_UINT16(p->BidSize, bidqty);
+    FIXSET_UINT16(p->OfferSize, offerqty);
+    FIXSET_UINT32(p->investor_acno, m_investorAcno);
+    FIXSET_CHAR_N(&p->investor_flag, &m_investorFlag, 1);
     p->TimeInForce = rand() % 4 == 1 ? 8 : 0;
     p->PositionEffect = '9';
     p->order_source = m_orderSource;
-    TMPSET_CHAR_N(p->info_source, m_infoSource, 3);
+    FIXSET_CHAR_N(p->info_source, m_infoSource, 3);
 
     //tail
-    util.TMPSetCheckSum(&p->CheckSum, (uint8_t*)p, sizeof(TMP_R01_t));
+    util.FIXSetCheckSum(&p->CheckSum, (uint8_t*)p, sizeof(FIX_R01_t));
 
     //keep order record
     if(execType == '0')
@@ -266,10 +266,10 @@ void TaifexORGenerator::GenSingleR09(TMP_R09_t *p, char in_execType)
     }
 }
 
-void TaifexORGenerator::GenR09s(std::vector<TMP_R09_t> &vec, int num)
+void TaifexORGenerator::GenR09s(std::vector<FIX_R09_t> &vec, int num)
 {
     int cnt = 0, r = 0;
-    TMP_R09_t r09;
+    FIX_R09_t r09;
     uint8_t execType = 0;
 
     while(cnt < num)
@@ -289,12 +289,12 @@ void TaifexORGenerator::GenR09s(std::vector<TMP_R09_t> &vec, int num)
     }
 }
 
-void TaifexORGenerator::GenR02(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec_report)
+void TaifexORGenerator::GenR02(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_report)
 {
-    TMP_R02_t r02;
+    FIX_R02_t r02;
     int num = 1;
     int timeInForce = src_order->TimeInForce;
-    uint16_t remain_qty = TMPGET_UINT16(src_order->qty), cumqty = 0, leaveqty = 0;
+    uint16_t remain_qty = FIXGET_UINT16(src_order->qty), cumqty = 0, leaveqty = 0;
 
     if(timeInForce == 0 && src_order->ExecType == '0')//ROD and new
     {
@@ -303,11 +303,11 @@ void TaifexORGenerator::GenR02(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec
 
     for(int i = 0; i < num; i++)
     {
-        memset(&r02, 0, sizeof(TMP_R02_t));
+        memset(&r02, 0, sizeof(FIX_R02_t));
 
-        util.TMPHdrSet(&r02.MsgHeader, TMPMsgType_R02, sizeof(TMP_R02_t));
-        TMPSET_UINT32(r02.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
-        r02.MsgHeader.fcm_id = src_order->MsgHeader.fcm_id;
+        util.FIXHdrSet(&r02.MsgHeader, FIXMsgType_R02, sizeof(FIX_R02_t));
+        FIXSET_UINT32(r02.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
+        r02.MsgHeader.TargetCompID = src_order->MsgHeader.TargetCompID;
         r02.MsgHeader.session_id = src_order->MsgHeader.session_id;
         if(i == 0)
         {
@@ -325,16 +325,16 @@ void TaifexORGenerator::GenR02(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec
             r02.ExecType = 'F';
         }
         r02.cm_id = src_order->cm_id;
-        r02.fcm_id = src_order->fcm_id;
-        TMPSET_CHAR_N(r02.order_no, src_order->order_no, TMP_ORDNO_LEN);
+        r02.TargetCompID = src_order->TargetCompID;
+        FIXSET_CHAR_N(r02.order_no, src_order->order_no, FIX_ORDNO_LEN);
         r02.ord_id = src_order->ord_id;
-        TMPSET_CHAR_N(r02.user_define, src_order->user_define, TMP_UDD_LEN);
+        FIXSET_CHAR_N(r02.user_define, src_order->user_define, FIX_UDD_LEN);
         r02.symbol_type = src_order->symbol_type;
-        TMPSET_CHAR_N(r02.sym, src_order->sym, TMP_SYM_LEN);
+        FIXSET_CHAR_N(r02.sym, src_order->sym, FIX_SYM_LEN);
         r02.Price = src_order->Price;
         r02.qty = src_order->qty;
         r02.investor_acno = src_order->investor_acno;
-        TMPSET_CHAR_N(&r02.investor_flag, &src_order->investor_flag, 1);
+        FIXSET_CHAR_N(&r02.investor_flag, &src_order->investor_flag, 1);
         r02.Side = src_order->Side;
         r02.OrdType = src_order->OrdType;
         r02.TimeInForce = src_order->TimeInForce;
@@ -350,27 +350,27 @@ void TaifexORGenerator::GenR02(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec
         {
             if(timeInForce == 4)//FOK
             {
-                TMPSET_UINT16(r02.LastQty, remain_qty);
+                FIXSET_UINT16(r02.LastQty, remain_qty);
             }
             else
             {
-                TMPSET_UINT16(r02.LastQty, rand() % remain_qty + 1);
+                FIXSET_UINT16(r02.LastQty, rand() % remain_qty + 1);
             }
 
             r02.px_subtotal = 0;
-            cumqty += TMPGET_UINT16(r02.LastQty);
-            remain_qty -= TMPGET_UINT16(r02.LastQty);
-            TMPSET_UINT16(r02.CumQty, cumqty);
+            cumqty += FIXGET_UINT16(r02.LastQty);
+            remain_qty -= FIXGET_UINT16(r02.LastQty);
+            FIXSET_UINT16(r02.CumQty, cumqty);
             leaveqty = remain_qty - cumqty;
             if(remain_qty < cumqty)
             {
                 leaveqty = 0;
             }
-            TMPSET_UINT16(r02.LeavesQty, leaveqty);
+            FIXSET_UINT16(r02.LeavesQty, leaveqty);
             r02.before_qty = 0;
         }
 
-        util.TMPSetCheckSum(&r02.CheckSum, (uint8_t*)&r02, sizeof(TMP_R02_t));
+        util.FIXSetCheckSum(&r02.CheckSum, (uint8_t*)&r02, sizeof(FIX_R02_t));
         vec_report.push_back(r02);
 
         
@@ -382,12 +382,12 @@ void TaifexORGenerator::GenR02(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec
     }
 }
 
-void TaifexORGenerator::GenR02(TMP_R09_t *src_order, int side, std::vector<TMP_R02_t> &vec_report)
+void TaifexORGenerator::GenR02(FIX_R09_t *src_order, int side, std::vector<FIX_R02_t> &vec_report)
 {
-    TMP_R02_t r02;
+    FIX_R02_t r02;
     int num = 1;
-    uint16_t remain_bidqty = TMPGET_UINT16(src_order->BidSize), bidcumqty = 0, bidleaveqty = 0;
-    uint16_t remain_offerqty = TMPGET_UINT16(src_order->OfferSize), offercumqty = 0, offerleaveqty = 0;
+    uint16_t remain_bidqty = FIXGET_UINT16(src_order->BidSize), bidcumqty = 0, bidleaveqty = 0;
+    uint16_t remain_offerqty = FIXGET_UINT16(src_order->OfferSize), offercumqty = 0, offerleaveqty = 0;
 
     if(src_order->ExecType == '0')//ROD and new
     {
@@ -396,11 +396,11 @@ void TaifexORGenerator::GenR02(TMP_R09_t *src_order, int side, std::vector<TMP_R
 
     for(int i = 0; i < num; i++)
     {
-        memset(&r02, 0, sizeof(TMP_R02_t));
+        memset(&r02, 0, sizeof(FIX_R02_t));
 
-        util.TMPHdrSet(&r02.MsgHeader, TMPMsgType_R02, sizeof(TMP_R02_t));
-        TMPSET_UINT32(r02.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
-        r02.MsgHeader.fcm_id = src_order->MsgHeader.fcm_id;
+        util.FIXHdrSet(&r02.MsgHeader, FIXMsgType_R02, sizeof(FIX_R02_t));
+        FIXSET_UINT32(r02.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
+        r02.MsgHeader.TargetCompID = src_order->MsgHeader.TargetCompID;
         r02.MsgHeader.session_id = src_order->MsgHeader.session_id;
         if(i == 0)
         {
@@ -418,16 +418,16 @@ void TaifexORGenerator::GenR02(TMP_R09_t *src_order, int side, std::vector<TMP_R
             r02.ExecType = 'F';
         }
         r02.cm_id = src_order->cm_id;
-        r02.fcm_id = src_order->fcm_id;
-        TMPSET_CHAR_N(r02.order_no, src_order->order_no, TMP_ORDNO_LEN);
+        r02.TargetCompID = src_order->TargetCompID;
+        FIXSET_CHAR_N(r02.order_no, src_order->order_no, FIX_ORDNO_LEN);
         r02.ord_id = src_order->ord_id;
-        TMPSET_CHAR_N(r02.user_define, src_order->user_define, TMP_UDD_LEN);
+        FIXSET_CHAR_N(r02.user_define, src_order->user_define, FIX_UDD_LEN);
         r02.symbol_type = src_order->symbol_type;
-        TMPSET_CHAR_N(r02.sym, src_order->sym, TMP_SYM_LEN);
+        FIXSET_CHAR_N(r02.sym, src_order->sym, FIX_SYM_LEN);
         r02.Price = side == 1 ? src_order->BidPx : src_order->OfferPx;
         r02.qty = side == 1 ? src_order->BidSize : src_order->OfferSize;
         r02.investor_acno = src_order->investor_acno;
-        TMPSET_CHAR_N(&r02.investor_flag, &src_order->investor_flag, 1);
+        FIXSET_CHAR_N(&r02.investor_flag, &src_order->investor_flag, 1);
         r02.Side = side;
         r02.OrdType = 1;
         r02.TimeInForce = src_order->TimeInForce;
@@ -443,41 +443,41 @@ void TaifexORGenerator::GenR02(TMP_R09_t *src_order, int side, std::vector<TMP_R
         {
             if(side == 1)
             {
-                TMPSET_UINT16(r02.LastQty, rand() % remain_bidqty + 1);
+                FIXSET_UINT16(r02.LastQty, rand() % remain_bidqty + 1);
             }
             else
             {
-                TMPSET_UINT16(r02.LastQty, rand() % remain_offerqty + 1);
+                FIXSET_UINT16(r02.LastQty, rand() % remain_offerqty + 1);
             }
             r02.px_subtotal = 0;
             if(side == 1)
             {
-                bidcumqty += TMPGET_UINT16(r02.LastQty);
-                remain_bidqty -= TMPGET_UINT16(r02.LastQty);
-                TMPSET_UINT16(r02.CumQty, bidcumqty);
+                bidcumqty += FIXGET_UINT16(r02.LastQty);
+                remain_bidqty -= FIXGET_UINT16(r02.LastQty);
+                FIXSET_UINT16(r02.CumQty, bidcumqty);
                 bidleaveqty = remain_bidqty - bidcumqty;
                 if(remain_bidqty < bidcumqty)
                 {
                     bidleaveqty = 0;
                 }
-                TMPSET_UINT16(r02.LeavesQty, bidleaveqty);
+                FIXSET_UINT16(r02.LeavesQty, bidleaveqty);
             }
             else
             {
-                offercumqty += TMPGET_UINT16(r02.LastQty);
-                remain_offerqty -= TMPGET_UINT16(r02.LastQty);
-                TMPSET_UINT16(r02.CumQty, offercumqty); 
+                offercumqty += FIXGET_UINT16(r02.LastQty);
+                remain_offerqty -= FIXGET_UINT16(r02.LastQty);
+                FIXSET_UINT16(r02.CumQty, offercumqty); 
                 offerleaveqty = remain_offerqty - offercumqty;
                 if(remain_offerqty < offercumqty)
                 {
                     offerleaveqty = 0;
                 }
-                TMPSET_UINT16(r02.LeavesQty, offerleaveqty);
+                FIXSET_UINT16(r02.LeavesQty, offerleaveqty);
             }
             r02.before_qty = 0;
         }
         
-        util.TMPSetCheckSum(&r02.CheckSum, (uint8_t*)&r02, sizeof(TMP_R02_t));
+        util.FIXSetCheckSum(&r02.CheckSum, (uint8_t*)&r02, sizeof(FIX_R02_t));
         vec_report.push_back(r02);
 
         if((side == 1 ? remain_bidqty : remain_offerqty) == 0)
@@ -487,15 +487,15 @@ void TaifexORGenerator::GenR02(TMP_R09_t *src_order, int side, std::vector<TMP_R
     }
 }
 
-void TaifexORGenerator::GenR03(TMP_R01_t *src_order, std::vector<TMP_R03_t> &vec_report)
+void TaifexORGenerator::GenR03(FIX_R01_t *src_order, std::vector<FIX_R03_t> &vec_report)
 {
-    TMP_R03_t r03;
+    FIX_R03_t r03;
 
-    memset(&r03, 0, sizeof(TMP_R03_t));
+    memset(&r03, 0, sizeof(FIX_R03_t));
 
-    util.TMPHdrSet(&r03.MsgHeader, TMPMsgType_R03, sizeof(TMP_R03_t));
-    TMPSET_UINT32(r03.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
-    r03.MsgHeader.fcm_id = src_order->MsgHeader.fcm_id;
+    util.FIXHdrSet(&r03.MsgHeader, FIXMsgType_R03, sizeof(FIX_R03_t));
+    FIXSET_UINT32(r03.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
+    r03.MsgHeader.TargetCompID = src_order->MsgHeader.TargetCompID;
     r03.MsgHeader.session_id = src_order->MsgHeader.session_id;
 
     if(src_order->ExecType == '4')//cancel
@@ -508,26 +508,26 @@ void TaifexORGenerator::GenR03(TMP_R01_t *src_order, std::vector<TMP_R03_t> &vec
     }
 
     r03.status_code = rand() % 46 + 1;
-    r03.fcm_id = src_order->fcm_id;
-    TMPSET_CHAR_N(r03.order_no, src_order->order_no, TMP_ORDNO_LEN);
+    r03.TargetCompID = src_order->TargetCompID;
+    FIXSET_CHAR_N(r03.order_no, src_order->order_no, FIX_ORDNO_LEN);
     r03.ord_id = src_order->ord_id;
-    TMPSET_CHAR_N(r03.user_define, src_order->user_define, TMP_UDD_LEN);
+    FIXSET_CHAR_N(r03.user_define, src_order->user_define, FIX_UDD_LEN);
 
     r03.Side = src_order->Side;
 
-    util.TMPSetCheckSum(&r03.CheckSum, (uint8_t*)&r03, sizeof(TMP_R03_t));
+    util.FIXSetCheckSum(&r03.CheckSum, (uint8_t*)&r03, sizeof(FIX_R03_t));
     vec_report.push_back(r03);
 }
 
-void TaifexORGenerator::GenR03(TMP_R09_t *src_order, int side, std::vector<TMP_R03_t> &vec_report)
+void TaifexORGenerator::GenR03(FIX_R09_t *src_order, int side, std::vector<FIX_R03_t> &vec_report)
 {
-    TMP_R03_t r03;
+    FIX_R03_t r03;
 
-    memset(&r03, 0, sizeof(TMP_R03_t));
+    memset(&r03, 0, sizeof(FIX_R03_t));
 
-    util.TMPHdrSet(&r03.MsgHeader, TMPMsgType_R03, sizeof(TMP_R03_t));
-    TMPSET_UINT32(r03.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
-    r03.MsgHeader.fcm_id = src_order->MsgHeader.fcm_id;
+    util.FIXHdrSet(&r03.MsgHeader, FIXMsgType_R03, sizeof(FIX_R03_t));
+    FIXSET_UINT32(r03.MsgHeader.MsgSeqNum, m_report_beginMsgSeqNum++);
+    r03.MsgHeader.TargetCompID = src_order->MsgHeader.TargetCompID;
     r03.MsgHeader.session_id = src_order->MsgHeader.session_id;
 
     if(src_order->ExecType == '4')//cancel
@@ -540,18 +540,18 @@ void TaifexORGenerator::GenR03(TMP_R09_t *src_order, int side, std::vector<TMP_R
     }
 
     r03.status_code = rand() % 46 + 1;
-    r03.fcm_id = src_order->fcm_id;
-    TMPSET_CHAR_N(r03.order_no, src_order->order_no, TMP_ORDNO_LEN);
+    r03.TargetCompID = src_order->TargetCompID;
+    FIXSET_CHAR_N(r03.order_no, src_order->order_no, FIX_ORDNO_LEN);
     r03.ord_id = src_order->ord_id;
-    TMPSET_CHAR_N(r03.user_define, src_order->user_define, TMP_UDD_LEN);
+    FIXSET_CHAR_N(r03.user_define, src_order->user_define, FIX_UDD_LEN);
 
     r03.Side = side;
 
-    util.TMPSetCheckSum(&r03.CheckSum, (uint8_t*)&r03, sizeof(TMP_R03_t));
+    util.FIXSetCheckSum(&r03.CheckSum, (uint8_t*)&r03, sizeof(FIX_R03_t));
     vec_report.push_back(r03);
 }
 
-void TaifexORGenerator::GenReport(TMP_R01_t *src_order, std::vector<TMP_R02_t> &vec_r02, std::vector<TMP_R03_t> &vec_r03)
+void TaifexORGenerator::GenReport(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03)
 {
     int pb = rand() % 100;
     if(src_order->ExecType == '0')
@@ -578,7 +578,7 @@ void TaifexORGenerator::GenReport(TMP_R01_t *src_order, std::vector<TMP_R02_t> &
     }
 }
 
-void TaifexORGenerator::GenReport(TMP_R09_t *src_order, std::vector<TMP_R02_t> &vec_r02, std::vector<TMP_R03_t> &vec_r03)
+void TaifexORGenerator::GenReport(FIX_R09_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03)
 {
     for(int i = 0; i < 2; i++)
     {
@@ -610,14 +610,14 @@ void TaifexORGenerator::GenReport(TMP_R09_t *src_order, std::vector<TMP_R02_t> &
 
 uint64_t TaifexORGenerator::OrdernoToNum(std::string orderno)
 {
-    if(orderno.size() != TMP_ORDNO_LEN)
+    if(orderno.size() != FIX_ORDNO_LEN)
         return 0;
 
     uint64_t num = 0;
-    for(int i = 0; i < TMP_ORDNO_LEN; i++)
+    for(int i = 0; i < FIX_ORDNO_LEN; i++)
     {
         uint8_t c = orderno[i];
-        num += m_map_alph_num[c] * (uint64_t)pow(62, TMP_ORDNO_LEN - i - 1);
+        num += m_map_alph_num[c] * (uint64_t)pow(62, FIX_ORDNO_LEN - i - 1);
     }
 
     return num;
@@ -625,16 +625,16 @@ uint64_t TaifexORGenerator::OrdernoToNum(std::string orderno)
 
 std::string TaifexORGenerator::NumToOrderno(uint64_t num)
 {
-    std::string orderno(TMP_ORDNO_LEN, '0');
-    for(int i = 0; i < TMP_ORDNO_LEN - 1; i++)
+    std::string orderno(FIX_ORDNO_LEN, '0');
+    for(int i = 0; i < FIX_ORDNO_LEN - 1; i++)
     {
-        uint64_t base = (uint64_t)pow(62, TMP_ORDNO_LEN - i - 1);
+        uint64_t base = (uint64_t)pow(62, FIX_ORDNO_LEN - i - 1);
         uint64_t quotient = num / base;
         orderno[i] = m_map_num_alph[(uint8_t)quotient];
         num -= quotient * base;
     }
 
-    orderno[TMP_ORDNO_LEN - 1] = m_map_num_alph[(uint8_t)num];
+    orderno[FIX_ORDNO_LEN - 1] = m_map_num_alph[(uint8_t)num];
 
     return orderno;
 }

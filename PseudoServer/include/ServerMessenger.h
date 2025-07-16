@@ -15,25 +15,20 @@
 class ServerMessenger 
 {
 public:
-    int MakeL10(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
-    int MakeL30(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint32_t endOutBoundNum);
-    int MakeL41(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint32_t fileSize, const std::vector<char>& data, bool isEof);
-    int MakeL50(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt);
-    int MakeR12(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
-    int MakeR04(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
-    int MakeR05(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
+    int MakeA(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int Make0(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint32_t endOutBoundNum);
+    int Make1(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint32_t fileSize, const std::vector<char>& data, bool isEof);
+    int Make2(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt);
+    int Make3(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int Make4(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int Make5(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int MakeD(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int MakeG(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint16_t append_no);
+    int MakeH(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int Make8(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
+    int Make9(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code);
 
-    int MakeL20(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
-    int MakeL40(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code, uint16_t append_no);
-    int MakeL60(uint8_t *buf, uint16_t fcm_id, uint16_t session_id, uint8_t status_code);
-
-    int IsRecvL10(uint8_t* buf);
-    int IsRecvL20(uint8_t* buf);
-    int IsRecvL40(uint8_t* buf);
-    int IsRecvL42(uint8_t* buf);
-    int IsRecvL60(uint8_t* buf);
-    int IsRecvR11(uint8_t* buf);
-    int IsRecvR05(uint8_t* buf);
+    char SearchMsgType(uint8_t* buf);
 
     TaifexOrderUtility util;
 };
