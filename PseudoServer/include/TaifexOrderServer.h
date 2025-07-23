@@ -123,7 +123,10 @@ private:
     int m_port;
     int m_expectedSessions;
     std::string m_server_ip;
-    bool isLogon = false;
+    FIXhdr_t m_hdr;
+    FIX_2_t m_2_data;
+    FIX_3_t m_3_data;
+    State currentState;
 
     std::vector<std::shared_ptr<Session>> m_vec_sessions;
     std::vector<std::thread> m_vec_threads;
@@ -137,6 +140,7 @@ private:
     std::map<uint16_t, int> m_map_session_id_sockkfd;
 
     bool m_en_hb = false;
+    bool isLogon = false;
 
     int m_recv_r01_cnt = 0;
     int m_recv_r09_cnt = 0;

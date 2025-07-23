@@ -3,11 +3,13 @@
 
 #include <arpa/inet.h> 
 #include <cstdint>
+#include <iostream>
 #include <map>
 
 #define FIX_UDD_LEN 8
 #define FIX_SYM_LEN 20
 #define FIX_ORDNO_LEN 5
+#define SOH '\x01'
 
 #define FIXSET_CHAR_N(DES, SRC, N) (memcpy((DES), (SRC), (N)))
 #define FIXSET_UINT8(DES, SRC) ((DES) = (SRC))
@@ -67,11 +69,13 @@
 enum class State {
     Logging,
     Ordering,
-    Loggingout
+    SendingLogout,
+    Idle
 };
 
 // Event Enum
 enum class Event {
+    Idle,
     Logon,
     Order,
     Logout
@@ -83,23 +87,21 @@ enum class Event {
 //     ExecutionReport
 // };
 
-#pragma pack(1)
-typedef struct _FIXMsgType
-{
-	char Logon = 'A',
-	char Heartbeat = '0',
-	char TestRequest = '1',
-	char ResendRequest = '2',
-	char RejectSession = '3',
-	char SequenceReset = '4',
-	char Logout = '5',
-	char NewOrder = 'D',
-	char OrderCancel = 'G',
-	char OrderCancelRequest = 'F',
-	char OrderStatus = 'H',
-	char ExecutionReport = '8',
-	char OrderCancelReject = '9'
-} FIXMsgType;
+std::map<std::string, char> FIXMsgType;
+FIXMsgType["Logon"] = 'A';
+FIXMsgType["Heartbeat"] = '0';
+FIXMsgType["TestRequest"] = '1';
+FIXMsgType["ResendRequest"] = '2';
+FIXMsgType["RejectSession"] = '3';
+FIXMsgType["SequenceReset"] = '4';
+FIXMsgType["Logout"] = "5";
+FIXMsgType["NewOrder"] = 'D';
+FIXMsgType["OrderCancel"] = "G";
+FIXMsgType["OrderCancelRequest"] = 'F';
+FIXMsgType["OrderStatus"] = 'H';
+FIXMsgType["ExecutionReport"] = '8';
+FIXMsgType["OrderCancelReject"] = '9';
+FIXMsgType["BusinessMessageReject"] = 'j';
 
 #pragma pack(1)
 typedef struct _Msg_time_t
@@ -114,7 +116,7 @@ typedef struct _FIXhdr_t
 {
 	std::string BeginString;             // 8
 	uint16_t BodyLength;                 // 9
-	uint8_t MessageType;                 // 35
+	char MessageType;                 // 35
 	uint32_t MsgSeqNum;                  // 34
 	std::string SenderCompID = "T116001";// 49
 	std::string TargetCompID = "XTAI";   // 56
@@ -169,7 +171,7 @@ typedef struct _FIX_3_t
     uint16_t RefSeqNum;              // 45
     std::string RefTagID;            // 371
     char RefMsgType;                 // 372
-    std::string SessionRejectReason; // 373
+    uint16_t SessionRejectReason; // 373
     std::string Text;                // 58
     unsigned char CheckSum;          // 10
 } FIX_3_t;

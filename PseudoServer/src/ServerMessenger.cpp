@@ -42,7 +42,7 @@ int ServerMessenger::Make1(uint8_t *buf, uint16_t TargetCompID, uint8_t status_c
     return sizeof(FIX_1_t) + data.size();
 }
 
-int ServerMessenger::Make2(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt) 
+int ServerMessenger::Make2(uint8_t *buf, FIX_2_t *msg, uint16_t TargetCompID, uint8_t status_code, uint8_t HeartBtInt, uint16_t max_flow_ctrl_cnt) 
 {
     FIX_2_t *p = (FIX_2_t *)buf;
     util.FIXHdrSet(&p->MsgHeader, FIXMsgType_2, sizeof(FIX_2_t));
@@ -56,7 +56,7 @@ int ServerMessenger::Make2(uint8_t *buf, uint16_t TargetCompID, uint8_t status_c
     return sizeof(FIX_2_t);
 }
 
-int ServerMessenger::Make3(uint8_t *buf, uint16_t TargetCompID, uint8_t status_code) 
+int ServerMessenger::Make3(uint8_t *buf, FIX_3_t *msg, uint16_t TargetCompID, uint8_t status_code) 
 {
     FIX_3_t *p = (FIX_3_t *)buf;
     util.FIXHdrSet(&p->MsgHeader, FIXMsgType_3, sizeof(FIX_3_t));
@@ -165,36 +165,75 @@ int ServerMessenger::Make9(uint8_t *buf, uint16_t TargetCompID, uint8_t status_c
     return sizeof(FIX_9_t);
 }
 
-char ServerMessenger::SearchMsgType(uint8_t *buf)
+int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX_2_t& resendRequest_msg, FIX_3_t& reject_msg)
 {
-    FIX_L10_t *p = (FIX_L10_t *)buf;
+    size_t pos = 0;
+    int tagNumber = 0;
+    bool needReject = false;
+    while (pos < buf.size() && tagNumber < 7) {
+        size_t next = buf.find(SOH, pos);
+        if (next == std::string::npos) 
+            return 1;
 
-    int st = 0;
-    char MsgType;
-    unsigned char Checksum;
-    uint8_t type = FIXGET_UINT8(p->MsgHeader.MessageType);
-    uint8_t status_code = FIXGET_UINT8(p->status_code);
-    util.FIXSetCheckSum(&Checksum, (void*)buf, sizeof(FIX_L10_t));
-
-    if(type != FIXMsgType_L10)
-    {
-        printf("Not recv L10, recved %d\n", type);
-        st++;
+        std::string tagValue = buf.substr(pos, next - pos);
+        size_t eqPos = tagValue.find('=');
+        if (eqPos == std::string::npos) {
+            pos = next + 1;
+            continue;
+        }
+        std::string tag = tagValue.substr(0, eqPos);
+        std::string value = tagValue.substr(eqPos + 1);
+        tagNumber++;
+        if (tagNumber == 1 && tag == "8") {
+            header.BeginString = value;
+            if (header.BeginString != "FIX4.4")
+                return 5;
+        }
+        else if (tagNumber == 2 && tag == "9") {
+            header.BodyLength = FIXGET_UINT16(value);
+            if (header.BodyLength != buf.size()) {
+                reject_msg.RefTagID = '9';
+                reject_msg.SessionRejectReason = 5;
+                reject_msg.Text = "";
+                needReject = true;
+            }
+        }
+        else if (tagNumber == 3 && tag == "35") {
+            header.MessageType = value;
+        }
+        else if (tagNumber == 4 && tag == "34") {
+            if (FIXGET_UINT32(value) > header.MsgSeqNum + 1) {
+                std::cout << "message sequence error, sned MsgType = 2" << std::endl;
+                resendRequest_msg.BeginSeqNo = header.MsgSeqNum + 1;
+                resendRequest_msg.EndSeqNo = FIXGET_UINT32(value) - 1;
+                return 2;
+            }
+            else if (FIXGET_UINT32(value) < header.MsgSeqNum + 1) {
+                return 5;
+            }
+            header.MsgSeqNum = FIXGET_UINT32(value);
+        }
+        else if (tagNumber == 5 && tag == "49") {
+            header.SenderCompID = value;
+        }
+        else if (tagNumber == 6 && tag == "56") {
+            header.TargetCompID = value;
+        }
+        else if (tagNumber == 7 && tag == "52") {
+            header.SendingTime = reinterpret_cast<Msg_time_t>(value);
+        }
+        else {
+            std::cout << "tag order error, send MsgType = 5" << std::endl;
+            return 5;
+        }
+        pos = next + 1;
     }
-
-    if(status_code)
-    {
-        printf("recv %d, but status code != 0 (%d)\n", type, status_code);\
-        st++;
+    if (needReject) {
+        reject_msg.RefSeqNum = header.MsgSeqNum;
+        reject_msg.RefMsgType = header.MessageType;
+        return 3;
     }
-
-    if(Checksum != p->CheckSum)
-    {
-        printf("recv %d, but checksum error, golden=%d, recved=%d\n", type, Checksum, p->CheckSum);
-        st++;
-    }
-
-    return MsgType;
+    return 0;
 }
 
 int ServerMessenger::IsRecvL20(uint8_t *buf)

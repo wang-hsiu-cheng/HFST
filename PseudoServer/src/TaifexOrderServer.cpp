@@ -104,137 +104,155 @@ int TaifexOrderServer::Start()
             m_vec_sessions.push_back(session);
         }
 
-        // use a delay thread to check if logno finished in 60 seconds
-        std::thread delayed_thread([this]()
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(60000));
-            if (!isLogon)
-                return 0;
-        });
-        delayed_thread.detach();
-
         //create thread by session
         m_vec_threads.emplace_back([this, session, clientAddr]() 
         {
-            switch (current_state_) {
-                case State::Idle:
-                    if (event == Event::Start) {
-                        current_state_ = State::Running;
-                        on_enter_state("Running");
-                    }
-                    break;
-                case State::Running:
-                    if (event == Event::Pause) {
-                        current_state_ = State::Paused;
-                        on_enter_state("Paused");
-                    } else if (event == Event::Stop) {
-                        current_state_ = State::Idle;
-                        on_enter_state("Idle");
-                    }
-                    break;
-                case State::Paused:
-                    if (event == Event::Resume) {
-                        current_state_ = State::Running;
-                        on_enter_state("Running");
-                    } else if (event == Event::Stop) {
-                        current_state_ = State::Idle;
-                        on_enter_state("Idle");
-                    }
-                    break;
-            }
             // start login
-            char buffer[1500] = {0};
+            char buffer[4096] = {0};
             int recvSize = 0;
+            int recvMsgError = 0;
+            auto start = std::chrono::steady_clock::now();
             std::cout << "[Session " << session->GetSessionNum() << "] Connected from " << inet_ntoa(clientAddr.sin_addr) << std::endl;
+            m_hdr.MsgSeqNum = -1;
+            currentState = State::Logging;
+            while (1) {
+                recvSize = session->RecvSinglePacket(buffer);
+                if (recvSize <= 0) 
+                {
+                    std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
+                    return 0;
+                }
+                recvMsgError = m_messenger.SearchMsgType(buffer, m_hdr, m_2_data, m_3_data);
+                
+                switch (currentState) {
+                    case State::Logging:
+                        if (m_hdr.MessageType == FIXMsgType["Logon"] && !recvMsgError) {
+                            m_messenger.MakeA((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_A_t));
+                            printf("[SERVER] port %d, session %d, send A \n", m_port, session->GetSessionNum());
+                            isLogon = true;
+                            currentState = State::Ordering;
+                            std::cout << "Ordering" << std::endl;
+                        }
+                        else if (recvMsgError == 2) {
+                            m_messenger.Make2((uint8_t*)buffer, &m_2_data, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_2_t));
+                            printf("[SERVER] port %d, session %d, send 2 \n", m_port, session->GetSessionNum());
+                            currentState = State::Logging;
+                            std::cout << "Logging" << std::endl;
+                        }
+                        else if (recvMsgError == 3) {
+                            m_messenger.Make3((uint8_t*)buffer, &m_3_data, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_3_t));
+                            printf("[SERVER] port %d, session %d, send 3 \n", m_port, session->GetSessionNum());
+                            currentState = State::Logging;
+                            std::cout << "Logging" << std::endl;
+                        }
+                        else if ((m_hdr.MessageType == FIXMsgType["Heartbeat"] && !recvMsgError)) {
+                            currentState = State::Logging;
+                            std::cout << "Logging" << std::endl;
+                        }
+                        else if (m_hdr.MessageType == FIXMsgType["Logout"]) {
+                            m_messenger.Make5((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_5_t));
+                            currentState = State::Idle;
+                            std::cout << "Logoutted" << std::endl;
+                            return 1;
+                        }
+                        else if (recvMsgError == 5) {
+                            m_messenger.Make5((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_5_t));
+                            start = std::chrono::steady_clock::now();
+                            currentState = State::SendingLogout;
+                            std::cout << "SendingLogout" << std::endl;
+                        }
+                        else {
+                            m_messenger.Make5((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_5_t));
+                            start = std::chrono::steady_clock::now();
+                            currentState = State::SendingLogout;
+                            std::cout << "error state order, SendingLogout" << std::endl;
+                        }
+                        break;
+                    case State::Ordering:
+                        if (m_hdr.MessageType == FIXMsgType["NewOrder"]) {
+                            currentState = State::Ordering;
+                        }
+                        else if (recvMsgError == 2) {
+                            m_messenger.Make2((uint8_t*)buffer, &m_2_data, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_2_t));
+                            printf("[SERVER] port %d, session %d, send 2 \n", m_port, session->GetSessionNum());
+                            currentState = State::Ordering;
+                            std::cout << "Ordering" << std::endl;
+                        }
+                        else if (recvMsgError == 3) {
+                            m_messenger.Make3((uint8_t*)buffer, &m_3_data, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_3_t));
+                            printf("[SERVER] port %d, session %d, send 3 \n", m_port, session->GetSessionNum());
+                            currentState = State::Ordering;
+                            std::cout << "Ordering" << std::endl;
+                        }
+                        else if ((m_hdr.MessageType == FIXMsgType["Heartbeat"] && !recvMsgError)) {
+                            currentState = State::Ordering;
+                            std::cout << "Ordering" << std::endl;
+                        }
+                        else if (m_hdr.MessageType == FIXMsgType["Logout"]) {
+                            m_messenger.Make5((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_5_t));
+                            currentState = State::Idle;
+                            std::cout << "Logoutted" << std::endl;
+                            return 1;
+                        } 
+                        else {
+                            m_messenger.Make5((uint8_t*)buffer, TargetCompID, 94);
+                            session->SendPacket((uint8_t*)buffer, sizeof(FIX_5_t));
+                            start = std::chrono::steady_clock::now();
+                            currentState = State::SendingLogout;
+                            std::cout << "error state order, SendingLogout" << std::endl;
+                        }
+                        break;
+                    case State::SendingLogout:
+                        if (m_hdr.MessageType == FIXMsgType["Logout"]) {
+                            start = std::chrono::steady_clock::now();
+                            currentState = State::Idle;
+                            std::cout << "Logoutted" << std::endl;
+                            return 1;
+                        } 
+                        else if ((m_hdr.MessageType == FIXMsgType["Heartbeat"] && !recvMsgError) || recvMsgError == 3 || recvMsgError == 2) {
+                            currentState = State::SendingLogout;
+                            std::cout << "SendingLogout" << std::endl;
+                        }
+                        else {
+                            auto end = std::chrono::steady_clock::now();
+                            std::chrono::duration<double> elapsed = end - start;
+                            if (elapsed > 5) {
+                                currentState = State::Idle;
+                                std::cout << "Logoutted" << std::endl;
+                                return 1;
+                            }
+                            currentState = State::SendingLogout;
+                        }
+                        break;
+                    default:
+                        currentState = currentState;
+                        break;
+                }
+            }
 
-            //Recv L10
-            recvSize = session->RecvSinglePacket(buffer);
-            if (recvSize <= 0) 
+            // use a delay thread to check if logno finished in 60 seconds
+            std::thread delayed_thread([this]()
             {
-                std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
-                return;
-            }
-            FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(buffer);
-            uint16_t TargetCompID = FIXGET_UINT16(hdr->TargetCompID);
-            uint16_t session_id = FIXGET_UINT16(hdr->session_id);
-            if(m_messenger.IsRecvL10((uint8_t*)buffer) != 0)
-            {
-                printf("[SERVER] port %d, session %d, recv L10 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
-                return;
-            }
-            printf("[SERVER] port %d, session %d, recv L10 \n", m_port, session->GetSessionNum());
-            
-            //Send L10
-            m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 0);
-            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
-            printf("[SERVER] port %d, session %d, send L10 \n", m_port, session->GetSessionNum());
+                if (!isLogon)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(60000));
+                if (!isLogon) {
+                    std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
+                    return 0;
+                }
+            });
+            delayed_thread.detach();
 
-            //Recv L20
-            recvSize = session->RecvSinglePacket(buffer);
-            if (recvSize <= 0) 
-            {
-                std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
-                return;
-            }
-            if(m_messenger.IsRecvL20((uint8_t*)buffer) != 0)
-            {
-                printf("[SERVER] port %d, session %d, recv L20 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
-                return;
-            }
-            printf("[SERVER] port %d, session %d, recv L20 \n", m_port, session->GetSessionNum());
-            //Send L30
-            m_messenger.MakeL30((uint8_t*)buffer, TargetCompID, session_id, 0, 0);
-            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L30_t));
-            printf("[SERVER] port %d, session %d, send L30 \n", m_port, session->GetSessionNum());
-
-            //Recv L40
-            recvSize = session->RecvSinglePacket(buffer);
-            if (recvSize <= 0) 
-            {
-                std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
-                return;
-            }
-            if(m_messenger.IsRecvL40((uint8_t*)buffer) != 0)
-            {
-                printf("[SERVER] port %d, session %d, recv L40 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
-                return;
-            }
-            printf("[SERVER] port %d, session %d, recv L40 \n", m_port, session->GetSessionNum());
-
-            //Send L50
-            m_messenger.MakeL50((uint8_t*)buffer, TargetCompID, session_id, 0, 30, 160);
-            session->SendPacket((uint8_t*)buffer, sizeof(FIX_L50_t));
-
-            //Recv L60
-            recvSize = session->RecvSinglePacket(buffer);
-            if (recvSize <= 0) 
-            {
-                std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
-                return;
-            }
-            if(m_messenger.IsRecvL60((uint8_t*)buffer) != 0)
-            {
-                printf("[SERVER] port %d, session %d, recv L60 error\n", m_port, session->GetSessionNum());
-                m_messenger.MakeL10((uint8_t*)buffer, TargetCompID, session_id, 94);
-                session->SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
-                return;
-            }
-            printf("[SERVER] port %d, session %d, recv L60 \n", m_port, session->GetSessionNum());
-
-            m_map_idx_target_id[session->GetSessionNum()] = TargetCompID;
-            m_map_idx_sender_id[session->GetSessionNum()] = session_id;
-            m_map_session_id_sockkfd[session_id] = session->GetSockfd();
-
-            printf("[SERVER] port %d, session_id %d, session_idx %d, login finish\n", m_port, session_id, session->GetSessionNum());
             SetHeartBeatIntervalInSec(hdr->HeartBtInt);
             EnableHeartBeat();
-
             //create thread for heartbeat
             if(m_en_hb)
             {
@@ -258,87 +276,6 @@ int TaifexOrderServer::Start()
             }
 
             printf("[SERVER] port %d, session_id %d, session_idx %d, wait recv order\n", m_port, session_id, session->GetSessionNum());
-            //wait recv order
-            while(1)
-            {
-                recvSize = session->RecvSinglePacket(buffer);
-                if (recvSize <= 0) 
-                {
-                    std::cerr << "[Session " << session->GetSessionNum() << "] Connection error." << std::endl;
-                    break;
-                }
-
-                FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(buffer);
-                uint8_t type = FIXGET_UINT8(hdr->MessageType);
-                if(type == FIXMsgType_R05)
-                {
-                    if(m_messenger.IsRecvR05((uint8_t*)buffer) != 0)
-                    {
-                        printf("[SERVER] port %d, session %d, recv R05 error\n", m_port, session->GetSessionNum());
-                        break;
-                    }
-                    std::lock_guard<std::mutex> lock(m_sessionMutex);
-                    m_recv_r05_cnt++;
-                    printf("### [SERVER][%s] port %d, session %d, recv R05(%d)\n", m_messenger.util.GetTimeStr(FIXGET_UINT32(hdr->SendingTime.epoch_s), FIXGET_UINT16(hdr->SendingTime.ms)), m_port, session->GetSessionNum(), m_recv_r05_cnt);
-                }
-                else if(type == FIXMsgType_R01)
-                {
-                    std::lock_guard<std::mutex> lock(m_sessionMutex);
-                    m_recv_r01_cnt++;
-                    m_vec_r01.push_back(*reinterpret_cast<FIX_R01_t*>(buffer));
-
-                    int r02_start = m_vec_r02.size(), r03_start = m_vec_r03.size();
-                    m_repor_generator.GenReport(reinterpret_cast<FIX_R01_t*>(buffer), m_vec_r02, m_vec_r03);
-                    for(int i = r02_start; i < (int)m_vec_r02.size(); i++)
-                    {
-                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(FIX_R02_t));
-                        usleep(m_report_delay_us);
-                        m_sent_r02_cnt++;
-                    }
-
-                    for(int i = r03_start; i < (int)m_vec_r03.size(); i++)
-                    {
-                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(FIX_R03_t));
-                        usleep(m_report_delay_us);
-                        m_sent_r03_cnt++;
-                    }
-
-                    printf("### [SERVER] port %d, session_id %d, recv R01 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_sender_id[session->GetSessionNum()], m_recv_r01_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
-                }
-                else if(type == FIXMsgType_R09)
-                {
-                    std::lock_guard<std::mutex> lock(m_sessionMutex);
-                    m_recv_r09_cnt++;
-                    m_vec_r09.push_back(*reinterpret_cast<FIX_R09_t*>(buffer));
-
-                    int r02_start = m_vec_r02.size(), r03_start = m_vec_r03.size();
-                    m_repor_generator.GenReport(reinterpret_cast<FIX_R09_t*>(buffer), m_vec_r02, m_vec_r03);
-                    for(int i = r02_start; i < (int)m_vec_r02.size(); i++)
-                    {
-                        session->SendPacket((uint8_t*)&m_vec_r02[i], sizeof(FIX_R02_t));
-                        usleep(m_report_delay_us);
-                        m_sent_r02_cnt++;
-                    }
-
-                    for(int i = r03_start; i < (int)m_vec_r03.size(); i++)
-                    {
-                        session->SendPacket((uint8_t*)&m_vec_r03[i], sizeof(FIX_R03_t));
-                        usleep(m_report_delay_us);
-                        m_sent_r03_cnt++;
-                    }
-
-                    printf("### [SERVER] port %d, session_id %d, recv R09 (%d), sent R02 (%d), R03 (%d)\n", m_port, m_map_idx_sender_id[session->GetSessionNum()], m_recv_r09_cnt, m_sent_r02_cnt, m_sent_r03_cnt);
-                }
-                else
-                {
-                    printf("[SERVER] port %d, session %d, recv unknown type %d, ", m_port, session->GetSessionNum(), type);
-                    for(int i = 0; i < (int)sizeof(FIXhdr_t); i++)
-                    {
-                        printf("%02x", (uint8_t)buffer[i]);
-                    }
-                    printf("\n");
-                }
-            }
         });
     }
 
