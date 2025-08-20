@@ -24,12 +24,14 @@
 #define FIXGET_MSGLEN(SRC) ((unsigned short)(ntohs(SRC)) + sizeof(unsigned short) + sizeof(unsigned char) - sizeof(FIXHdr_t))
 
 #define FIXGET_INT8(SRC) ((char)(SRC))
-#define FIXGET_UINT8(SRC) ((unsigned char)(SRC))
+// #define FIXGET_UINT8(SRC) ((unsigned char)(SRC))
 #define FIXGET_UINT16(SRC) ((unsigned short)ntohs((SRC)))
 #define FIXGET_INT16(SRC) ((short)ntohs((SRC)))
 #define FIXGET_UINT32(SRC) ((unsigned int)ntohl((SRC)))
 #define FIXGET_INT32(SRC) ((int)ntohl((SRC)))
 #define FIXGET_INT64(SRC) ((long)Ntohll((SRC)))
+
+#define STR_TO_INT(SRC) (std::stoi(SRC))
 
 #ifndef Ntohll
 #define Ntohll(x) (((long)(ntohl((int)((x << 32) >> 32))) << 32) | ntohl(((int)(x >> 32))))
@@ -73,41 +75,46 @@ enum class State {
     Idle
 };
 
-// Event Enum
-enum class Event {
+enum class OrderState {
     Idle,
-    Logon,
-    Order,
-    Logout
+    SendExecutionReport,
+    SendCancelReject
 };
 
-// enum class OrderState {
-//     TestRequest,
-//     NewOrder,
-//     ExecutionReport
-// };
+enum class SessionRejectStatus {
+  BadFormat = 0,
+  ValueOutOfBound = 1,
+  MissingFields = 2,
+  UnknownField = 4,
+  FieldEmpty = 5,
+  FieldOutOfOrder = 6,
+  InvalidTagNumber = 10,
+  NonRawDataHasSOH = 11,
+  MessageMalformed = 100,
+  MessageTypeUnknown = 101,
+  MissingCompID = 110,
+  IncorrectDataLength = 114,
+  OptSessionRuleViolated = 201,
+  SessionLogonBlocked = 204,
+  SessionOnHold = 205
+};
 
-std::map<std::string, char> FIXMsgType;
-FIXMsgType["Logon"] = 'A';
-FIXMsgType["Heartbeat"] = '0';
-FIXMsgType["TestRequest"] = '1';
-FIXMsgType["ResendRequest"] = '2';
-FIXMsgType["RejectSession"] = '3';
-FIXMsgType["SequenceReset"] = '4';
-FIXMsgType["Logout"] = "5";
-FIXMsgType["NewOrder"] = 'D';
-FIXMsgType["OrderCancel"] = "G";
-FIXMsgType["OrderCancelRequest"] = 'F';
-FIXMsgType["OrderStatus"] = 'H';
-FIXMsgType["ExecutionReport"] = '8';
-FIXMsgType["OrderCancelReject"] = '9';
-FIXMsgType["BusinessMessageReject"] = 'j';
+struct TaifexOrder{
+    std::map<std::string, std::string> FIXMsgType = {
+        {"Logon", "A"}, {"Heartbeat", "0"}, {"TestRequest", "1"}, {"ResendRequest", "2"}, {"RejectSession", "3"}, 
+        {"SequenceReset", "4"}, {"Logout", "5"}, {"NewOrder", "D"}, {"OrderCancelRequest", "F"}, {"OrderCancel", "G"}, 
+        {"OrderStatus", "H"}, {"ExecutionReport", "8"}, {"OrderCancelReject", "9"}, {"BusinessMessageReject", "j"}
+    };
+};
 
 #pragma pack(1)
 typedef struct _Msg_time_t
 {
-	int32_t epoch_s;
-	uint16_t ms;
+	uint16_t YYYY;
+	uint16_t MMDD;
+    uint8_t HH;
+    uint8_t MM;
+    float SSsss;
 } Msg_time_t;
 #pragma pack()
 
@@ -115,8 +122,8 @@ typedef struct _Msg_time_t
 typedef struct _FIXhdr_t
 {
 	std::string BeginString;             // 8
-	uint16_t BodyLength;                 // 9
-	char MessageType;                 // 35
+	std::string BodyLength;              // 9
+	std::string MessageType;             // 35
 	uint32_t MsgSeqNum;                  // 34
 	std::string SenderCompID = "T116001";// 49
 	std::string TargetCompID = "XTAI";   // 56
@@ -132,7 +139,7 @@ typedef struct _FIX_A_t
     uint16_t HeartBtInt = 10;            // 108
     uint16_t RawDataLength;              // 95
     uint16_t RawData;                    // 96
-    unsigned char CheckSum;              // 10
+    std::string CheckSum;                // 10
 } FIX_A_t;
 #pragma pack()
 
@@ -169,9 +176,9 @@ typedef struct _FIX_3_t
 {
     FIXhdr_t hdr;
     uint16_t RefSeqNum;              // 45
-    std::string RefTagID;            // 371
-    char RefMsgType;                 // 372
-    uint16_t SessionRejectReason; // 373
+    uint16_t RefTagID;               // 371
+    std::string RefMsgType;          // 372
+    uint16_t SessionRejectReason;    // 373
     std::string Text;                // 58
     unsigned char CheckSum;          // 10
 } FIX_3_t;
@@ -181,7 +188,7 @@ typedef struct _FIX_3_t
 typedef struct _FIX_4_t
 {
     FIXhdr_t hdr;
-    char GapFillFlag = 'Y';          // 123
+    bool GapFillFlag = true;         // 123
     uint16_t NewSeqNo;               // 36
     unsigned char CheckSum;          // 10
 } FIX_4_t;
@@ -203,17 +210,18 @@ typedef struct _FIX_D_t
 	std::string ClOrdID;             // 11
 	std::string OrderID;             // 37
     std::string Account;             // 1
-    uint16_t Symbol;                 // 55
-    uint16_t Side;                   // 54
+    std::string Symbol;              // 55
+    char Side;                       // 54
     Msg_time_t TransactTime;         // 60
-    uint16_t OrderQty;               // 38
-    uint16_t OrderType;              // 40
-    uint16_t TimeInFource;           // 59
-    uint16_t Price;                  // 44
+    float OrderQty;                  // 38
+    char OrderType;                  // 40
+    char TimeInFource;               // 59
+    float Price;                     // 44
+    char RefOrderID;                 // 1080
     char TwselvacnoFlag;             // 10000
     char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
-    char TwseRejStaleOrd;            // 10004
+    bool TwseRejStaleOrd;            // 10004
     unsigned char CheckSum;          // 10
 } FIX_D_t;
 #pragma pack()
@@ -226,12 +234,12 @@ typedef struct _FIX_F_t
     std::string OrigClOrdID;         // 41
     std::string OrderID;             // 37
     std::string Account;             // 1
-    uint16_t Symbol;                 // 55
-    uint16_t Side;                   // 54
+    std::string Symbol;              // 55
+    char Side;                       // 54
     Msg_time_t TransactTime;         // 60
     char TwselvacnoFlag;             // 10000
-    char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
+    bool TwseRejStaleOrd;            // 10004
     unsigned char CheckSum;          // 10
 } FIX_F_t;
 #pragma pack()
@@ -244,11 +252,11 @@ typedef struct _FIX_G_t
     std::string OrigClOrdID;         // 41
     std::string OrderID;             // 37
     std::string Account;             // 1
-    uint16_t Symbol;                 // 55
-    uint16_t Side;                   // 54
+    std::string Symbol;              // 55
+    char Side;                       // 54
     Msg_time_t TransactTime;         // 60
-    uint16_t OrderQty;               // 38 (改量需填，不改量填 0)
-    uint16_t Price;                  // 44 (改價需填，不改價填 0)
+    float OrderQty;                  // 38 (改量需填，不改量填 0)
+    float Price;                     // 44 (改價需填，不改價填 0)
     char TwselvacnoFlag;             // 10000
     char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
@@ -262,11 +270,9 @@ typedef struct _FIX_H_t
     FIXhdr_t hdr;
     std::string ClOrdID;             // 11
     std::string OrderID;             // 37
-    std::string Account;             // 1
-    uint16_t Symbol;                 // 55
-    uint16_t Side;                   // 54
+    std::string Symbol;              // 55
+    char Side;                       // 54
     char TwselvacnoFlag;             // 10000
-    char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
     unsigned char CheckSum;          // 10
 } FIX_H_t;
@@ -276,20 +282,32 @@ typedef struct _FIX_H_t
 typedef struct _FIX_8_t
 {
     FIXhdr_t hdr;
-    std::string ClOrdID;             // 11
     std::string OrderID;             // 37
+    std::string ClOrdID;             // 11
+    std::string OrigClOrdID;         // 41
     std::string ExecID;              // 17
-    uint8_t ExecTransType;           // 20
-    uint8_t ExecType;                // 150
-    uint8_t OrdStatus;               // 39
-    uint16_t Symbol;                 // 55
-    uint16_t Side;                   // 54
-    uint16_t OrderQty;               // 38
-    uint16_t LeavesQty;              // 151
-    uint16_t CumQty;                 // 14
-    uint16_t LastQty;                // 32
-    uint16_t AvgPx;                  // 6
+    char ExecType;                   // 150
+    char OrdStatus;                  // 39
+    uint16_t OrdRejReason;           // 103
+    uint16_t ExecRestatementReason;  // 378
+    std::string Account;             // 1
+    std::string Symbol;              // 55
+    char Side;                       // 54
     Msg_time_t TransactTime;         // 60
+    float OrderQty;                  // 38
+    char OrdType;                    // 40
+    char TimeInForce;                // 59
+    float Price;                     // 44
+    float LastQty;                   // 32
+    float LastPx;                    // 31
+    float LeavesQty;                 // 151
+    float CumQty;                    // 14
+    float AvgPx;                     // 6
+    std::string Text;                // 58
+    char RefOrderID;                 // 1080
+    char TwseIvacnoFlag;             // 10000
+    char TwseOrdType;                // 10001
+    char TwseExCode;                 // 10002
     unsigned char CheckSum;          // 10
 } FIX_8_t;
 #pragma pack()
@@ -301,12 +319,26 @@ typedef struct _FIX_9_t
     std::string OrderID;             // 37
     std::string ClOrdID;             // 11
     std::string OrigClOrdID;         // 41
-    uint8_t OrdStatus;               // 39
-    uint8_t CxlRejResponseTo;        // 434
+    char OrdStatus;                  // 39
+    std::string Account;             // 1
+    Msg_time_t TransactTime;         // 60
+    char CxlRejResponseTo;           // 434
     uint8_t CxlRejReason;            // 102
     std::string Text;                // 58
     unsigned char CheckSum;          // 10
 } FIX_9_t;
+#pragma pack()
+
+#pragma pack(1)
+typedef struct _FIX_j_t
+{
+    FIXhdr_t hdr;
+    uint32_t RefSeqNum;              // 45
+    std::string RefMsgType;          // 372
+    uint8_t BusinessRejectReason;    // 380
+    std::string Text;                // 58
+    unsigned char CheckSum;          // 10
+} FIX_j_t;
 #pragma pack()
 
 #pragma pack(1)
