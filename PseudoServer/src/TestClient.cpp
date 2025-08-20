@@ -1,36 +1,32 @@
 #include <TestClient.h>
 
-void Client::FIXHdrSet(FIXhdr_t* hdr, uint16_t msgType, uint16_t msgLen)
+std::string Client::FIXComputeCheckSum(const std::string& data)
 {
-    FIXSET_MSGLEN(hdr->msg_length, msgLen);
-	FIXSET_UINT8(hdr->MessageType, msgType);
-	FIXSET_INT32(hdr->SendingTime.epoch_s, time(NULL));
+    const char* ptr = data.data();
+    const char* End = ptr + data.size() - 1;  // exclude last byte (SOH after tag 10)
+    unsigned int sum = 0;
+
+    for (; ptr != End; ++ptr) {
+        sum += static_cast<unsigned char>(*ptr);
+    }
+
+    uint8_t checksumValue = static_cast<uint8_t>(sum & 0xFF);
+    std::ostringstream oss;
+    oss << std::setw(3) << std::setfill('0') << static_cast<int>(checksumValue);
+    return oss.str();  // e.g., "157", "003"
 }
 
-void Client::FIXSetCheckSum(uint8_t *checksum, const void *data, size_t size)
+int Client::MakeA(uint8_t *buf, std::string TargetCompID, uint8_t status_code)
 {
-    char *ptr = (char *)data;
-	char *End = ptr + size - 1;
-	unsigned int Sum = 0;
+    std::string buf_str(reinterpret_cast<char*>(buf));
+    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_A, sizeof(FIX_A_t));
+    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
+    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
+    // p->status_code = status_code;
+    // p->start_in_bound_num = 0;
+    FIXComputeCheckSum(buf_str);
 
-	for (; ptr != End; (Sum += (unsigned char)(*(ptr++))));
-
-	(*checksum) = (uint8_t)(Sum & 255);
-
-	return;
-}
-
-int Client::MakeL10(uint8_t *buf, uint16_t TargetCompID, uint16_t session_id, uint8_t status_code)
-{
-    FIX_L10_t *p = (FIX_L10_t *)buf;
-    FIXHdrSet(&p->MsgHeader, FIXMsgType_L10, sizeof(FIX_L10_t));
-    FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    p->status_code = status_code;
-    p->start_in_bound_num = 0;
-    FIXSetCheckSum(&p->CheckSum, (const void *)p, sizeof(FIX_L10_t));
-
-    return sizeof(FIX_L10_t);
+    return sizeof(FIX_A_t);
 }
 
 int Client::SendPacket(uint8_t *buf, int len)
@@ -58,8 +54,8 @@ int Client::Start()
         return 1;
     }
     char *buffer;
-    MakeL10((uint8_t*)buffer, TargetCompID, session_id, 0);
-    SendPacket((uint8_t*)buffer, sizeof(FIX_L10_t));
+    MakeA((uint8_t*)buffer, m_hdr.TargetCompID, 94);
+    SendPacket((uint8_t*)buffer, sizeof(FIX_A_t));
 
     close(m_sockfd);
 

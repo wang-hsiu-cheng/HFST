@@ -89,7 +89,7 @@ public:
             close(m_sockfd);
     }
 
-    void Start();
+    int Start();
 
     void SetHeartBeatIntervalInSec(int sec)
     {
@@ -106,17 +106,15 @@ public:
         m_en_hb = false;
     }
 
-    int GetRecvR01Cnt() const { return m_recv_r01_cnt; }
-    int GetRecvR09Cnt() const { return m_recv_r09_cnt; }
-    int GetRecvR05Cnt() const { return m_recv_r05_cnt; }
-    int GetSentR02Cnt() const { return m_sent_r02_cnt; }
-    int GetSentR03Cnt() const { return m_sent_r03_cnt; }
+    int GetRecvDCnt() const { return m_recv_D_cnt; }
+    int GetRecvACnt() const { return m_recv_A_cnt; }
+    int GetSent8Cnt() const { return m_sent_8_cnt; }
+    int GetSent9Cnt() const { return m_sent_9_cnt; }
     int GetSent0Cnt() const { return m_sent_0_cnt; }
 
-    std::vector<FIX_R01_t>* GetR01Vec() { return &m_vec_r01; }
-    std::vector<FIX_R09_t>* GetR09Vec() { return &m_vec_r09; }
-    std::vector<FIX_R02_t>* GetR02Vec() { return &m_vec_r02; }
-    std::vector<FIX_R03_t>* GetR03Vec() { return &m_vec_r03; }
+    std::vector<FIX_D_t>* GetDVec() { return &m_vec_D; }
+    std::vector<FIX_8_t>* Get8Vec() { return &m_vec_8; }
+    std::vector<FIX_9_t>* Get9Vec() { return &m_vec_9; }
 
 private:
     int m_sockfd;
@@ -124,41 +122,43 @@ private:
     int m_expectedSessions;
     std::string m_server_ip;
     FIXhdr_t m_hdr;
+    FIX_A_t m_A_data;
     FIX_2_t m_2_data;
     FIX_3_t m_3_data;
     State currentState;
+    OrderState currentOrderState;
 
     std::vector<std::shared_ptr<Session>> m_vec_sessions;
     std::vector<std::thread> m_vec_threads;
     std::mutex m_sessionMutex;
 
     ServerMessenger m_messenger;
-    TaifexORGenerator m_repor_generator;
 
     std::map<int, uint16_t> m_map_idx_target_id;
     std::map<int, uint16_t> m_map_idx_sender_id;
     std::map<uint16_t, int> m_map_session_id_sockkfd;
 
     bool m_en_hb = false;
+    bool m_rcv = false;
     bool isLogon = false;
 
-    int m_recv_r01_cnt = 0;
-    int m_recv_r09_cnt = 0;
-    int m_recv_r05_cnt = 0;
+    int m_recv_D_cnt = 0;
+    int m_recv_A_cnt = 0;
 
-    int m_sent_r02_cnt = 0;
-    int m_sent_r03_cnt = 0;
+    int m_sent_8_cnt = 0;
+    int m_sent_9_cnt = 0;
     int m_sent_0_cnt = 0;
 
     int m_report_delay_us = 5;
 
     int m_heartbeat_interval_sec = 30;
 
-    std::vector<FIX_R01_t> m_vec_r01;
-    std::vector<FIX_R09_t> m_vec_r09;
+    std::vector<FIX_D_t> m_vec_D;
 
-    std::vector<FIX_R02_t> m_vec_r02;
-    std::vector<FIX_R03_t> m_vec_r03;
+    std::vector<FIX_8_t> m_vec_8;
+    std::vector<FIX_9_t> m_vec_9;
+
+    TaifexOrder order;
 };
 
 #endif

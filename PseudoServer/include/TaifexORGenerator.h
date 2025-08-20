@@ -34,30 +34,30 @@ public:
     void SetOrdernoRange(std::string begin, std::string end);
     void SetOrderSymbols(std::vector<std::string> vec_symbols);
 
-    void GenSingleR01(FIX_R01_t *p, char in_execType);
-    void GenR01s(std::vector<FIX_R01_t> &vec, int num);
+    // void GenSingleR01(FIX_R01_t *p, char in_execType);
+    // void GenR01s(std::vector<FIX_R01_t> &vec, int num);
 
-    void GenSingleR09(FIX_R09_t *p, char in_execType);
-    void GenR09s(std::vector<FIX_R09_t> &vec, int num);
+    // void GenSingleR09(FIX_R09_t *p, char in_execType);
+    // void GenR09s(std::vector<FIX_R09_t> &vec, int num);
 
-    void GenReport(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03);
-    void GenReport(FIX_R09_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03);
+    // void GenReport(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03);
+    // void GenReport(FIX_R09_t *src_order, std::vector<FIX_R02_t> &vec_r02, std::vector<FIX_R03_t> &vec_r03);
 
     
-    std::vector<FIX_R01_t>* GetR01New() { return &m_vec_new_r01; }
-    std::vector<FIX_R01_t>* GetR01Cxl() { return &m_vec_cxl_r01; }
+    // std::vector<FIX_R01_t>* GetR01New() { return &m_vec_new_r01; }
+    // std::vector<FIX_R01_t>* GetR01Cxl() { return &m_vec_cxl_r01; }
     
-    std::vector<FIX_R09_t>* GetR09New() { return &m_vec_new_r09; }
-    std::vector<FIX_R09_t>* GetR09Cxl() { return &m_vec_cxl_r09; }
+    // std::vector<FIX_R09_t>* GetR09New() { return &m_vec_new_r09; }
+    // std::vector<FIX_R09_t>* GetR09Cxl() { return &m_vec_cxl_r09; }
 
     TaifexOrderUtility util;
 
 private:
-    void GenR02(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_r02);
-    void GenR03(FIX_R01_t *src_order, std::vector<FIX_R03_t> &vec_r03);
+    // void GenR02(FIX_R01_t *src_order, std::vector<FIX_R02_t> &vec_r02);
+    // void GenR03(FIX_R01_t *src_order, std::vector<FIX_R03_t> &vec_r03);
 
-    void GenR02(FIX_R09_t *src_order, int side, std::vector<FIX_R02_t> &vec_r02);
-    void GenR03(FIX_R09_t *src_order, int side, std::vector<FIX_R03_t> &vec_r03);
+    // void GenR02(FIX_R09_t *src_order, int side, std::vector<FIX_R02_t> &vec_r02);
+    // void GenR03(FIX_R09_t *src_order, int side, std::vector<FIX_R03_t> &vec_r03);
 
     uint64_t OrdernoToNum(std::string orderno);
     std::string NumToOrderno(uint64_t num);
@@ -90,14 +90,12 @@ private:
 
     uint32_t m_order_id = 1;
 
-    std::vector<FIX_R01_t> m_vec_new_r01, m_vec_cxl_r01;
-    std::vector<FIX_R09_t> m_vec_new_r09, m_vec_cxl_r09;
+    std::vector<FIX_D_t> m_vec_new_D, m_vec_cxl_D;
 
-    std::map<std::string, FIX_R01_t> m_map_orderno_new_r01, m_map_orderno_cxl_r01;
-    std::map<std::string, FIX_R09_t> m_map_orderno_new_r09, m_map_orderno_cxl_r09;
+    std::map<std::string, FIX_D_t> m_map_orderno_new_D, m_map_orderno_cxl_D;
 
-    std::map<std::string, FIX_R02_t> m_map_orderno_r02;
-    std::map<std::string, FIX_R03_t> m_map_orderno_r03;
+    std::map<std::string, FIX_8_t> m_map_orderno_8;
+    std::map<std::string, FIX_9_t> m_map_orderno_9;
 
 
     uint8_t m_order_exectype[2] = {'0', '4'};
@@ -133,6 +131,7 @@ private:
     {60, 'y'}, {61, 'z'}
     };
 
+    TaifexOrder order;
 };
 
 
