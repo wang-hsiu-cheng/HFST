@@ -15,13 +15,15 @@
 class TaifexOrderUtility 
 {
 public:
-    void FIXHdrSet(FIXhdr_t* hdr, uint16_t msgType, uint16_t msgLen);
+    // void FIXHdrSet(FIXhdr_t* hdr, uint16_t msgType, uint16_t msgLen);
 
-    void FIXSetCheckSum(uint8_t* checksum, const void* data, size_t size);
+    std::string FIXComputeCheckSum(const std::string& data);
 
     int GetMsgLen(FIXhdr_t* hdr);
 
     char* FIXTimeToString(time_t curSec);
+
+    Msg_time_t GetMsg_time_t(const std::string& timeStr);
 
     char* GetTimeStr(time_t msg_time_sec, uint16_t msg_time_ms);
     
@@ -40,7 +42,7 @@ private:
         "Friday",
         "Saturday"
     };
-
+    TaifexOrder order;
 };
 
 #endif
