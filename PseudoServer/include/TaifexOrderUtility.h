@@ -7,6 +7,7 @@
 #include <cstring>
 #include <ctime>
 #include <cerrno>
+#include <chrono>
 #include <iomanip>
 #include <sys/socket.h>
 
@@ -24,6 +25,7 @@ public:
     char* FIXTimeToString(time_t curSec);
 
     Msg_time_t GetMsg_time_t(const std::string& timeStr);
+    Msg_time_t GetMsg_time_t();
 
     char* GetTimeStr(time_t msg_time_sec, uint16_t msg_time_ms);
     

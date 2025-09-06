@@ -7,20 +7,17 @@
 // 	FIXSET_INT32(hdr->SendingTime.epoch_s, time(NULL));
 // }
 
-std::string TaifexOrderUtility::FIXComputeCheckSum(const std::string& data)
-{
-    const char* ptr = data.data();
-    const char* End = ptr + data.size() - 1;  // exclude last byte (SOH after tag 10)
-    unsigned int sum = 0;
+std::string TaifexOrderUtility::FIXComputeCheckSum(const std::string& buf) {
+    unsigned int cks = 0;
 
-    for (; ptr != End; ++ptr) {
-        sum += static_cast<unsigned char>(*ptr);
-    }
+    for (char ch : buf)
+        cks += static_cast<unsigned int>(ch);
+    unsigned int checksumValue = cks % 256;
 
-    uint8_t checksumValue = static_cast<uint8_t>(sum & 0xFF);
     std::ostringstream oss;
-    oss << std::setw(3) << std::setfill('0') << static_cast<int>(checksumValue);
-    return oss.str();  // e.g., "157", "003"
+    oss << std::setw(3) << std::setfill('0') << checksumValue;
+
+    return oss.str();
 }
 
 int TaifexOrderUtility::GetMsgLen(FIXhdr_t* hdr)
@@ -62,6 +59,22 @@ char* TaifexOrderUtility::FIXTimeToString(time_t curSec)
         curDate->tm_mday,
         curDate->tm_year+1900);
     return dateString;
+}
+Msg_time_t TaifexOrderUtility::GetMsg_time_t()
+{
+	Msg_time_t t;
+
+	auto now = std::chrono::system_clock::now();
+	std::time_t now_t = std::chrono::system_clock::to_time_t(now);
+	std::tm* local_tm = std::localtime(&now_t);
+
+	t.YYYY = local_tm->tm_year;
+	t.MMDD = (local_tm->tm_mon + 1) * 100 + local_tm->tm_mday;
+	t.HH = local_tm->tm_hour;
+	t.MM = local_tm->tm_min;
+	t.SSsss = (float)local_tm->tm_sec;
+
+	return t;
 }
 
 Msg_time_t TaifexOrderUtility::GetMsg_time_t(const std::string& timeStr)
