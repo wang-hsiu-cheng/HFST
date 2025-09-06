@@ -172,4 +172,7 @@ std::string TaifexORGenerator::NumToOrderno(uint64_t num)
     return orderno;
 }
 
-
+inline int TaifexORGenerator::GetPassword(std::string SenderCompID)
+{
+    return password[SenderCompID];
+}
