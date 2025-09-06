@@ -1,59 +1,62 @@
 #include "ServerMessenger.h"
 
-int ServerMessenger::MakeA(uint8_t *buf, std::string TargetCompID, uint8_t status_code)
+string ServerMessenger::MakeA(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code)
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_A, sizeof(FIX_A_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    // p->start_in_bound_num = 0;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_A_str;
+    FIX_A_t m_A_data;
+    int appendNo, password;
 
-    return sizeof(FIX_A_t);
-}
-
-int ServerMessenger::Make0(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
-{
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_0, sizeof(FIX_0_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    // p->end_in_bound_num = endOutBoundNum;
-    // p->EncryptMethod = 0;
-    util.FIXComputeCheckSum(buf_str);
-
-    return sizeof(FIX_0_t);
-}
-
-int ServerMessenger::Make1(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
-{
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_1, sizeof(FIX_1_t) + data.size());
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    // p->is_eof = isEof ? 1 : 0;
-    // p->file_size = fileSize;
-    util.FIXComputeCheckSum(buf_str);
-    // memcpy(p->data, data.data(), data.size());
-
-    return sizeof(FIX_1_t);
-}
-
-int ServerMessenger::Make2(uint8_t *buf, FIX_2_t *msg, std::string TargetCompID, uint8_t status_code) 
-{
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_2, sizeof(FIX_2_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    // p->HeartBtInt = HeartBtInt;
-    // p->max_flow_ctrl_cnt = max_flow_ctrl_cnt;
-    util.FIXComputeCheckSum(buf_str);
+    srand (( unsigned ) time ( NULL ));
+    appendNo = rand() % 999 + 1;
+    password = gen.GetPassword(hdr.SenderCompID);
     
-    return sizeof(FIX_2_t);
+    m_A_data.EncryptMethod = 0;
+    m_A_data.hdr = hdr;
+    m_A_data.HeartBtInt = 10;
+    m_A_data.RawData = appendNo * (password + 100);
+    m_A_data.RawDataLength = sizeof(FIX_A_t);
+    m_A_str(reinterpret_cast<FIX_A_t>(m_A_data));
+    m_A_str.append(util.FIXComputeCheckSum(m_A_str));
+
+    return m_A_str;
+}
+
+string ServerMessenger::Make0(uint8_t *buf, FIXhdr_t hdr, std::string TestReqID, uint8_t status_code) 
+{
+    std::string m_0_str;
+    FIX_0_t m_0_data;
+
+    m_0_data.hdr = hdr;
+    m_0_data.TestReqID = TestReqID;
+    m_0_str(reinterpret_cast<FIX_0_t>(m_0_data));
+    m_0_str.append(util.FIXComputeCheckSum(m_0_str));
+
+    return m_0_str;
+}
+
+string ServerMessenger::Make1(uint8_t *buf, FIXhdr_t hdr, std::string TestReqID, uint8_t status_code) 
+{
+    std::string m_1_str;
+    FIX_1_t m_1_data;
+
+    m_1_data.hdr = hdr;
+    m_1_data.TestReqID = TestReqID;
+    m_1_str(reinterpret_cast<FIX_1_t>(m_1_data));
+    m_1_str.append(util.FIXComputeCheckSum(m_1_str));
+
+    return m_1_str;
+}
+
+string ServerMessenger::Make2(FIX_2_t *msg, FIXhdr_t hdr, uint8_t status_code) 
+{
+    std::string m_2_str;
+
+    msg.hdr = hdr;
+    m_2_str(reinterpret_cast<FIX_2_t>(msg));
+    m_2_str.append(util.FIXComputeCheckSum(m_2_str));
+
+    return m_2_str;
+
     // FIX_R03_t r03;
 
     // memset(&r03, 0, sizeof(FIX_R03_t));
@@ -84,22 +87,22 @@ int ServerMessenger::Make2(uint8_t *buf, FIX_2_t *msg, std::string TargetCompID,
     // vec_report.push_back(r03);
 }
 
-int ServerMessenger::Make2resp(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make2resp(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
     std::string buf_str(reinterpret_cast<char*>(buf));
     return sizeof(FIX_D_t);
 }
 
-int ServerMessenger::Make3(uint8_t *buf, FIX_3_t *msg, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make3(FIX_3_t *msg, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_3, sizeof(FIX_3_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_3_str;
 
-    return sizeof(FIX_3_t);
+    msg.hdr = hdr;
+    m_3_str(reinterpret_cast<FIX_3_t>(msg));
+    m_3_str.append(util.FIXComputeCheckSum(m_3_str));
+
+    return m_3_str;
+
     // FIX_R03_t r03;
 
     // memset(&r03, 0, sizeof(FIX_R03_t));
@@ -130,46 +133,67 @@ int ServerMessenger::Make3(uint8_t *buf, FIX_3_t *msg, std::string TargetCompID,
     // vec_report.push_back(r03);
 }
 
-int ServerMessenger::Make3resp(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make3resp(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
     std::string buf_str(reinterpret_cast<char*>(buf));
     return sizeof(FIX_D_t);
 }
 
-int ServerMessenger::Make4(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make4(uint8_t *buf, FIXhdr_t hdr, uint16_t serverSeqNum) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_4, sizeof(FIX_4_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_4_str;
+    FIX_4_t m_4_data;
 
-    return sizeof(FIX_4_t);
+    m_4_data.hdr = hdr;
+    m_4_data.GapFillFlag = true;
+    m_4_data.NewSeqNo = serverSeqNum++;
+    m_4_str(reinterpret_cast<FIX_4_t>(m_4_data));
+    m_4_str.append(util.FIXComputeCheckSum(m_4_str));
+
+    return m_4_str;
 }
 
-int ServerMessenger::Make5(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make5(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_5, sizeof(FIX_5_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_5_str;
+    FIX_5_t m_5_data;
 
-    return sizeof(FIX_5_t);
+    m_5_data.hdr = hdr;
+    m_5_data.Text = "text";
+    m_5_str(reinterpret_cast<FIX_5_t>(m_5_data));
+    m_5_str.append(util.FIXComputeCheckSum(m_5_str));
+
+    return m_5_str;
 }
 
-int ServerMessenger::MakeD(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+// In pseudo erver, wont need to send message D.
+// Here, I just write an example for pseudo client.
+string ServerMessenger::MakeD(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_D, sizeof(FIX_D_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_D_str;
+    FIX_D_t m_D_data;
+    float unit;
+    int lots;
 
-    return sizeof(FIX_D_t);
+    m_D_data.hdr = hdr;
+	m_D_data.ClOrdID = "Given by broker";
+	m_D_data.OrderID = "Given by broker";
+    m_D_data.Account = "Given by broker";
+    m_D_data.Symbol = "002330";
+    m_D_data.Side = '1';
+    m_D_data.TransactTime = util.GetMsg_time_t();
+    m_D_data.OrderQty = unit * lots;
+    m_D_data.OrderType = '2';
+    m_D_data.TimeInFource = '0';
+    m_D_data.Price = 10000.0001;
+    m_D_data.TwselvacnoFlag = '1';
+    m_D_data.TwseOrdType = '0';
+    m_D_data.TwseExCode = '0';
+    m_D_data.TwseRejStaleOrd = false;
+    m_D_str(reinterpret_cast<FIX_D_t>(m_D_data));
+    m_D_str.append(util.FIXComputeCheckSum(m_D_str));
+
+    return m_D_str;
 
     // R01
     // int price = 0;
@@ -178,7 +202,7 @@ int ServerMessenger::MakeD(uint8_t *buf, std::string TargetCompID, uint8_t statu
     // std::string sym = "";
     // std::string orderno = "";
 
-    // //header
+    // //hdr
     // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_R01, sizeof(FIX_R01_t));
     // FIXSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
     // FIXSET_UINT16(p->MsgHeader.TargetCompID, m_fcmID);
@@ -256,7 +280,7 @@ int ServerMessenger::MakeD(uint8_t *buf, std::string TargetCompID, uint8_t statu
     // std::string sym = "";
     // std::string orderno = "";
 
-    // //header
+    // //hdr
     // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_R09, sizeof(FIX_R09_t));
     // FIXSET_UINT32(p->MsgHeader.MsgSeqNum, m_order_beginMsgSeqNum++);
     // FIXSET_UINT16(p->MsgHeader.TargetCompID, m_fcmID);
@@ -326,54 +350,105 @@ int ServerMessenger::MakeD(uint8_t *buf, std::string TargetCompID, uint8_t statu
     // }
 }
 
-int ServerMessenger::MakeF(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::MakeF(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    FIX_F_t *p = (FIX_F_t *)buf;
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_F, sizeof(FIX_F_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    // FIXSET_UINT16(p->append_no, append_no);
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_F_str;
+    FIX_F_t m_F_data;
 
-    return sizeof(FIX_F_t);
+    m_F_data.hdr = hdr;
+	m_F_data.ClOrdID = "Given by broker";
+    m_F_data.OrigClOrdID = "Given by broker";
+	m_F_data.OrderID = "Given by broker";
+    m_F_data.Account = "Given by broker";
+    m_F_data.Symbol = "002330";
+    m_F_data.Side = '1';
+    m_F_data.TransactTime = util.GetMsg_time_t();
+    m_F_data.TwselvacnoFlag = '1';
+    m_F_data.TwseExCode = '0';
+    m_F_data.TwseRejStaleOrd = false;
+    m_F_str(reinterpret_cast<FIX_F_t>(m_F_data));
+    m_F_str.append(util.FIXComputeCheckSum(m_F_str));
+
+    return m_F_str;
 }
 
-int ServerMessenger::MakeG(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::MakeG(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_G, sizeof(FIX_G_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_G_str;
+    FIX_G_t m_G_data;
 
-    return sizeof(FIX_G_t);
+    m_G_data.hdr = hdr;
+	m_G_data.ClOrdID = "Given by broker";
+    m_G_data.OrigClOrdID = "Given by broker";
+	m_G_data.OrderID = "Given by broker";
+    m_G_data.Account = "Given by broker";
+    m_G_data.Symbol = "002330";
+    m_G_data.Side = '1';
+    m_G_data.TransactTime = util.GetMsg_time_t();
+    m_G_data.OrderQty = 0;
+    m_G_data.Price = 10001.0001;
+    m_G_data.TwselvacnoFlag = '1';
+    m_G_data.TwseOrdType = '0';
+    m_G_data.TwseExCode = '0';
+    m_G_str(reinterpret_cast<FIX_G_t>(m_G_data));
+    m_G_str.append(util.FIXComputeCheckSum(m_G_str));
+
+    return m_G_str;
 }
 
-int ServerMessenger::MakeH(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::MakeH(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_H, sizeof(FIX_H_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_H_str;
+    FIX_H_t m_H_data;
 
-    return sizeof(FIX_H_t);
+    m_H_data.hdr = hdr;
+	m_H_data.ClOrdID = "Given by broker";
+	m_H_data.OrderID = "Given by broker";
+    m_H_data.Symbol = "002330";
+    m_H_data.Side = '1';
+    m_H_data.TwselvacnoFlag = '1';
+    m_H_data.TwseExCode = '0';
+    m_H_str(reinterpret_cast<FIX_H_t>(m_H_data));
+    m_H_str.append(util.FIXComputeCheckSum(m_H_str));
+
+    return m_H_str;
 }
 
-int ServerMessenger::Make8(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make8(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_8, sizeof(FIX_8_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_8_str;
+    FIX_8_t m_8_data;
 
-    return sizeof(FIX_8_t);
+    m_8_data.hdr = hdr;
+    m_8_data.OrderID = "Given by broker";
+    m_8_data.ClOrdID = "Given by broker";
+    m_8_data.OrigClOrdID = "Given by broker";
+    m_8_data.ExecID = ;
+    m_8_data.ExecType = ;
+    m_8_data.OrdStatus = ;
+    m_8_data.OrdRejReason = ;
+    m_8_data.Account = "Given by broker";
+    m_8_data.Symbol = "002330";
+    m_8_data.Side = '1';
+    m_8_data.TransactTime = util.GetMsg_time_t();
+    m_8_data.OrderQty = 0;
+    m_8_data.OrdType = '2';
+    m_8_data.TimeInForce = '0';
+    m_8_data.Price = 10000.0001;
+    m_8_data.LastQty = ;
+    m_8_data.LastPx = ;
+    m_8_data.LeavesQty = ;
+    m_8_data.CumQty = ;
+    m_8_data.AvgPx = 0;
+    m_8_data.Text = "";
+    m_8_data.TwseIvacnoFlag = '1';
+    m_8_data.TwseOrdType = '0';
+    m_8_data.TwseExCode = '0';
+    m_8_str(reinterpret_cast<FIX_8_t>(m_8_data));
+    m_8_str.append(util.FIXComputeCheckSum(m_8_str));
+
+    return m_8_str;
+
     // FIX_R02_t r02;
     // int num = 1;
     // int timeInForce = src_order->TimeInForce;
@@ -463,19 +538,28 @@ int ServerMessenger::Make8(uint8_t *buf, std::string TargetCompID, uint8_t statu
     // }
 }
 
-int ServerMessenger::Make9(uint8_t *buf, std::string TargetCompID, uint8_t status_code) 
+string ServerMessenger::Make9(uint8_t *buf, FIXhdr_t hdr, uint8_t status_code) 
 {
-    std::string buf_str(reinterpret_cast<char*>(buf));
-    // util.FIXHdrSet(&p->MsgHeader, FIXMsgType_9, sizeof(FIX_9_t));
-    // FIXSET_UINT16(p->MsgHeader.TargetCompID, TargetCompID);
-    // FIXSET_UINT16(p->MsgHeader.session_id, session_id);
-    // p->status_code = status_code;
-    util.FIXComputeCheckSum(buf_str);
+    std::string m_9_str;
+    FIX_9_t m_9_data;
 
-    return sizeof(FIX_9_t);
+    m_9_data.hdr = hdr;
+    m_9_data.OrderID = "Given by broker";
+    m_9_data.ClOrdID = "Given by broker";
+    m_9_data.OrigClOrdID = "Given by broker";
+    m_9_data.OrdStatus = ;
+    m_9_data.Account = "Given by broker";
+    m_9_data.TransactTime = util.GetMsg_time_t();
+    m_9_data.CxlRejResponseTo = '1';
+    m_9_data.CxlRejReason = ;
+    m_9_data.Text = "";
+    m_9_str(reinterpret_cast<FIX_9_t>(m_9_data));
+    m_9_str.append(util.FIXComputeCheckSum(m_9_str));
+
+    return m_9_str;
 }
 
-void ServerMessenger::MakeDs(std::vector<FIX_A_t> &vec, int num)
+string ServerMessenger::MakeDs(std::vector<FIX_A_t> &vec, int num)
 {
     int cnt = 0, r = 0;
     FIX_A_t A_;
@@ -498,7 +582,7 @@ void ServerMessenger::MakeDs(std::vector<FIX_A_t> &vec, int num)
     }
 }
 
-std::string ServerMessenger::getChecksumFromFIX(const std::string& buf) {
+string ServerMessenger::getChecksumFromFIX(const std::string& buf) {
     const std::string tag = "10=";
     size_t pos = buf.rfind(tag);  // 找最後一個出現的 "10="，通常是最後一欄
     if (pos == std::string::npos || pos + 6 > buf.size()) {
@@ -512,7 +596,7 @@ std::string ServerMessenger::getChecksumFromFIX(const std::string& buf) {
     return checksum;
 }
 
-int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX_2_t& resendRequest_msg, FIX_3_t& reject_msg)
+int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& hdr, FIX_2_t& resendRequest_msg, FIX_3_t& reject_msg)
 {
     size_t pos = 0;
     int tagNumber = 0;
@@ -539,13 +623,13 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX
         std::string value = tagValue.substr(eqPos + 1);
         tagNumber++;
         if (tagNumber == 1 && tag == "8") {
-            header.BeginString = value;
-            if (header.BeginString != "FIX4.4")
+            hdr.BeginString = value;
+            if (hdr.BeginString != "FIX4.4")
                 return 5;
         }
         else if (tagNumber == 2 && tag == "9") {
-            header.BodyLength = value;
-            if (STR_TO_INT(header.BodyLength) != buf.size()) {
+            hdr.BodyLength = value;
+            if (STR_TO_INT(hdr.BodyLength) != buf.size()) {
                 reject_msg.RefTagID = '9';
                 reject_msg.SessionRejectReason = 5;
                 reject_msg.Text = "";
@@ -553,28 +637,28 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX
             }
         }
         else if (tagNumber == 3 && tag == "35") {
-            header.MessageType = value;
+            hdr.MessageType = value;
         }
         else if (tagNumber == 4 && tag == "34") {
-            if (STR_TO_INT(value) > header.MsgSeqNum + 1) {
+            if (STR_TO_INT(value) > hdr.MsgSeqNum + 1) {
                 std::cout << "message sequence error, sned MsgType = 2" << std::endl;
-                resendRequest_msg.BeginSeqNo = header.MsgSeqNum + 1;
+                resendRequest_msg.BeginSeqNo = hdr.MsgSeqNum + 1;
                 resendRequest_msg.EndSeqNo = STR_TO_INT(value) - 1;
                 return 2;
             }
-            else if (STR_TO_INT(value) < header.MsgSeqNum + 1) {
+            else if (STR_TO_INT(value) < hdr.MsgSeqNum + 1) {
                 return 5;
             }
-            header.MsgSeqNum = STR_TO_INT(value);
+            hdr.MsgSeqNum = STR_TO_INT(value);
         }
         else if (tagNumber == 5 && tag == "49") {
-            header.SenderCompID = value;
+            hdr.SenderCompID = value;
         }
         else if (tagNumber == 6 && tag == "56") {
-            header.TargetCompID = value;
+            hdr.TargetCompID = value;
         }
         else if (tagNumber == 7 && tag == "52") {
-            header.SendingTime = util.GetMsg_time_t(value);
+            hdr.SendingTime = util.GetMsg_time_t(value);
         }
         else {
             std::cout << "tag order error, send MsgType = 5" << std::endl;
@@ -583,8 +667,8 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX
         pos = next + 1;
     }
     if (needReject) {
-        reject_msg.RefSeqNum = header.MsgSeqNum;
-        reject_msg.RefMsgType = header.MessageType;
+        reject_msg.RefSeqNum = hdr.MsgSeqNum;
+        reject_msg.RefMsgType = hdr.MessageType;
         return 3;
     }
 
