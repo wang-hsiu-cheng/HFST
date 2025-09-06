@@ -120,7 +120,9 @@ private:
     int m_sockfd;
     int m_port;
     int m_expectedSessions;
+    uint16_t serverSeqNum = 0;
     std::string m_server_ip;
+    std::string ClOrdID;
     FIXhdr_t m_hdr;
     FIX_A_t m_A_data;
     FIX_2_t m_2_data;
