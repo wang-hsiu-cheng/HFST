@@ -217,7 +217,6 @@ typedef struct _FIX_D_t
     char OrderType;                  // 40
     char TimeInFource;               // 59
     float Price;                     // 44
-    char RefOrderID;                 // 1080
     char TwselvacnoFlag;             // 10000
     char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
@@ -289,7 +288,6 @@ typedef struct _FIX_8_t
     char ExecType;                   // 150
     char OrdStatus;                  // 39
     uint16_t OrdRejReason;           // 103
-    uint16_t ExecRestatementReason;  // 378
     std::string Account;             // 1
     std::string Symbol;              // 55
     char Side;                       // 54
@@ -304,7 +302,6 @@ typedef struct _FIX_8_t
     float CumQty;                    // 14
     float AvgPx;                     // 6
     std::string Text;                // 58
-    char RefOrderID;                 // 1080
     char TwseIvacnoFlag;             // 10000
     char TwseOrdType;                // 10001
     char TwseExCode;                 // 10002
