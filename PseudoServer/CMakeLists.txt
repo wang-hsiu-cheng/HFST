@@ -40,4 +40,4 @@ target_link_libraries(TaifexOrderServer
   ServerMessenger
   ${ARMADILLO_LIBRARIES})
 
-add_executable(TestClient src/TestClient.cpp)
+# add_executable(TestClient src/TestClient.cpp)

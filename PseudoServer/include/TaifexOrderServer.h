@@ -42,17 +42,18 @@ public:
 		}
 
 	int GetSockfd() const { return m_sockfd; }
+    inline uint16_t GetMsgSeqNum() const { return m_msgSeqNum; }
 	int GetSessionNum() const { return m_sessionNum; }
 	
 	int RecvSinglePacket(char* outputBuffer, unsigned int flags = 0);
 
-    int SendPacket(uint8_t *buf, int len);
+    int SendPacket(const std::string &buf, int len);
 
 private:
 	int m_sockfd;
 	int m_sessionNum;
 	int m_listenPort;
-	int m_msgSeqNum;
+	uint16_t m_msgSeqNum;
 	
 	unsigned char* m_cur_recvBufferPtr;
 	
@@ -134,8 +135,6 @@ private:
     std::vector<std::thread> m_vec_threads;
     std::mutex m_sessionMutex;
 
-    ServerMessenger m_messenger;
-
     std::map<int, uint16_t> m_map_idx_target_id;
     std::map<int, uint16_t> m_map_idx_sender_id;
     std::map<uint16_t, int> m_map_session_id_sockkfd;
@@ -160,6 +159,7 @@ private:
     std::vector<FIX_8_t> m_vec_8;
     std::vector<FIX_9_t> m_vec_9;
 
+    ServerMessenger m_messenger;
     TaifexOrder order;
 };
 

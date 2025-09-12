@@ -15,26 +15,29 @@
 class TaifexORGenerator
 {
 public:
-    void AddSessionID(uint16_t v);
+    // void AddSessionID(uint16_t v);
 
-    void SetBeginMsgSeqNum(uint32_t v);
-    void SetOrderType(uint8_t v);
-    void SetFCMID(uint16_t v);
-    void SetCMID(uint16_t v);
+    // void SetBeginMsgSeqNum(uint32_t v);
+    // void SetOrderType(uint8_t v);
+    // void SetFCMID(uint16_t v);
+    // void SetCMID(uint16_t v);
 
-    void SetUserDefine(char *v);
-    void SetInvestorAcno(uint32_t v);
-    void SetInvestorFlag(char v);
-    void SetPositionEffect(char v);
-    void SetOrderSource(char v);
-    void SetInfoSource(char *v);
+    // void SetUserDefine(char *v);
+    // void SetInvestorAcno(uint32_t v);
+    // void SetInvestorFlag(char v);
+    // void SetPositionEffect(char v);
+    // void SetOrderSource(char v);
+    // void SetInfoSource(char *v);
     
-    void SetOrderPriceD100Range(uint32_t begin, uint32_t end);
-    void SetOrderQtyRange(uint32_t begin, uint32_t end);
-    void SetOrdernoRange(std::string begin, std::string end);
-    void SetOrderSymbols(std::vector<std::string> vec_symbols);
+    // void SetOrderPriceD100Range(uint32_t begin, uint32_t end);
+    // void SetOrderQtyRange(uint32_t begin, uint32_t end);
+    // void SetOrdernoRange(std::string begin, std::string end);
+    // void SetOrderSymbols(std::vector<std::string> vec_symbols);
 
-    int GetPassword(std::string SenderCompID);
+    inline int GetPassword(std::string SenderCompID)
+    {
+        return password[SenderCompID];
+    }
 
     // void GenSingleR01(FIX_R01_t *p, char in_execType);
     // void GenR01s(std::vector<FIX_R01_t> &vec, int num);
