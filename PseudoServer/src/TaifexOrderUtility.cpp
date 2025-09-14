@@ -45,21 +45,19 @@ int TaifexOrderUtility::GetMsgLen(FIXhdr_t* hdr)
     return len;
 }
 
-char* TaifexOrderUtility::FIXTimeToString(time_t curSec)
+std::string TaifexOrderUtility::GetMsg_time_tStr(Msg_time_t t)
 {
-    struct tm *curDate;
-    curDate = localtime(&curSec);
+	// Expected format: YYYYMMDD-HH:MM:SS.sss
     sprintf(dateString,
-        "%02d:%02d:%02d, %s %02d/%02d-%d",
-        curDate->tm_hour,
-        curDate->tm_min,
-        curDate->tm_sec,
-        Weekdays[curDate->tm_wday],
-        curDate->tm_mon+1,
-        curDate->tm_mday,
-        curDate->tm_year+1900);
+        "%04d%04d-%02d:%02d:%2.3f",
+        t.YYYY,
+        t.MMDD,
+		t.HH,
+		t.MM,
+		t.SSsss);
     return dateString;
 }
+
 Msg_time_t TaifexOrderUtility::GetMsg_time_t()
 {
 	Msg_time_t t;

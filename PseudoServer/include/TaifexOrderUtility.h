@@ -22,7 +22,7 @@ public:
 
     int GetMsgLen(FIXhdr_t* hdr);
 
-    char* FIXTimeToString(time_t curSec);
+    std::string GetMsg_time_tStr(Msg_time_t t);
 
     Msg_time_t GetMsg_time_t(const std::string& timeStr);
     Msg_time_t GetMsg_time_t();

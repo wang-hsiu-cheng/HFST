@@ -1,5 +1,194 @@
 #include "TaifexORGenerator.h"
 
+std::string TaifexORGenerator::SerializeHeader(const FIXhdr_t& msg) {
+    std::ostringstream oss;
+    oss << "35=" << msg.MessageType   << '\x01';
+    oss << "34=" << msg.MsgSeqNum     << '\x01';
+    oss << "49=" << msg.SenderCompID  << '\x01';
+    oss << "56=" << msg.TargetCompID  << '\x01';
+    oss << "52=" << util.GetMsg_time_tStr(msg.SendingTime) << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::SerializeA(const FIX_A_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "98="  << msg.EncryptMethod   << '\x01';
+    oss << "108="  << msg.HeartBtInt    << '\x01';
+    oss << "95=" << msg.RawDataLength       << '\x01';
+    oss << "96=" << msg.RawData     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize0(const FIX_0_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "112="  << msg.TestReqID   << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize1(const FIX_1_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "112="  << msg.TestReqID   << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize2(const FIX_2_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "7="  << msg.BeginSeqNo   << '\x01';
+    oss << "16="  << msg.EndSeqNo    << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize3(const FIX_3_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "45="  << msg.RefSeqNum   << '\x01';
+    oss << "371="  << msg.RefTagID    << '\x01';
+    oss << "372=" << msg.RefMsgType       << '\x01';
+    oss << "373=" << msg.SessionRejectReason     << '\x01';
+    oss << "58=" << msg.Text     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize4(const FIX_4_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "123="  << msg.GapFillFlag   << '\x01';
+    oss << "36="  << msg.NewSeqNo    << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize5(const FIX_5_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "58="  << msg.Text   << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::SerializeD(const FIX_D_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "11="  << msg.ClOrdID   << '\x01';
+    oss << "37="  << msg.OrderID    << '\x01';
+    oss << "1=" << msg.Account       << '\x01';
+    oss << "55=" << msg.Symbol     << '\x01';
+    oss << "54="  << msg.Side   << '\x01';
+    oss << "60="  << util.GetMsg_time_tStr(msg.TransactTime)    << '\x01';
+    oss << "38=" << msg.OrderQty       << '\x01';
+    oss << "40=" << msg.OrderType     << '\x01';
+    oss << "59="  << msg.TimeInFource   << '\x01';
+    oss << "44="  << msg.Price    << '\x01';
+    oss << "10000=" << msg.TwselvacnoFlag       << '\x01';
+    oss << "10001=" << msg.TwseOrdType     << '\x01';
+    oss << "10002=" << msg.TwseExCode       << '\x01';
+    oss << "10004=" << msg.TwseRejStaleOrd     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::SerializeF(const FIX_F_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "11="  << msg.ClOrdID   << '\x01';
+    oss << "41="  << msg.OrigClOrdID    << '\x01';
+    oss << "37=" << msg.OrderID       << '\x01';
+    oss << "1=" << msg.Account     << '\x01';
+    oss << "55="  << msg.Symbol   << '\x01';
+    oss << "54="  << msg.Side    << '\x01';
+    oss << "60=" << util.GetMsg_time_tStr(msg.TransactTime)       << '\x01';
+    oss << "10000=" << msg.TwselvacnoFlag     << '\x01';
+    oss << "10002=" << msg.TwseExCode       << '\x01';
+    oss << "10004=" << msg.TwseRejStaleOrd     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::SerializeG(const FIX_G_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "11="  << msg.ClOrdID   << '\x01';
+    oss << "41="  << msg.OrigClOrdID    << '\x01';
+    oss << "37=" << msg.OrderID       << '\x01';
+    oss << "1=" << msg.Account     << '\x01';
+    oss << "55="  << msg.Symbol   << '\x01';
+    oss << "54="  << msg.Side    << '\x01';
+    oss << "60=" << util.GetMsg_time_tStr(msg.TransactTime)       << '\x01';
+    oss << "38=" << msg.OrderQty     << '\x01';
+    oss << "44="  << msg.Price   << '\x01';
+    oss << "10000="  << msg.TwselvacnoFlag    << '\x01';
+    oss << "10001=" << msg.TwseOrdType       << '\x01';
+    oss << "10002=" << msg.TwseExCode     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::SerializeH(const FIX_H_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "11="  << msg.ClOrdID   << '\x01';
+    oss << "37="  << msg.OrderID    << '\x01';
+    oss << "55=" << msg.Symbol       << '\x01';
+    oss << "54=" << msg.Side     << '\x01';
+    oss << "10000=" << msg.TwselvacnoFlag       << '\x01';
+    oss << "10002=" << msg.TwseExCode     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize8(const FIX_8_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "37="  << msg.OrderID    << '\x01';
+    oss << "11="  << msg.ClOrdID    << '\x01';
+    oss << "41=" << msg.OrigClOrdID << '\x01';
+    oss << "17=" << msg.ExecID      << '\x01';
+    oss << "150="  << msg.ExecType  << '\x01';
+    oss << "39="  << msg.OrdStatus  << '\x01';
+    oss << "103=" << msg.OrdRejReason       << '\x01';
+    oss << "1=" << msg.Account      << '\x01';
+    oss << "55="  << msg.Symbol     << '\x01';
+    oss << "54="  << msg.Side       << '\x01';
+    oss << "60=" << util.GetMsg_time_tStr(msg.TransactTime)       << '\x01';
+    oss << "38=" << msg.OrderQty    << '\x01';
+    oss << "40="  << msg.OrdType    << '\x01';
+    oss << "59="  << msg.TimeInForce    << '\x01';
+    oss << "44=" << msg.Price       << '\x01';
+    oss << "32=" << msg.LastQty     << '\x01';
+    oss << "31=" << msg.LastPx      << '\x01';
+    oss << "151="  << msg.LeavesQty << '\x01';
+    oss << "14="  << msg.CumQty     << '\x01';
+    oss << "6=" << msg.AvgPx        << '\x01';
+    oss << "58=" << msg.Text        << '\x01';
+    oss << "10000="  << msg.TwseIvacnoFlag    << '\x01';
+    oss << "10001=" << msg.TwseOrdType       << '\x01';
+    oss << "10002=" << msg.TwseExCode     << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serialize9(const FIX_9_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "37="  << msg.OrderID   << '\x01';
+    oss << "11="  << msg.ClOrdID    << '\x01';
+    oss << "41=" << msg.OrigClOrdID       << '\x01';
+    oss << "39=" << msg.OrdStatus     << '\x01';
+    oss << "1="  << msg.Account   << '\x01';
+    oss << "60="  << util.GetMsg_time_tStr(msg.TransactTime)    << '\x01';
+    oss << "434=" << msg.CxlRejResponseTo       << '\x01';
+    oss << "102=" << msg.CxlRejReason     << '\x01';
+    oss << "58="  << msg.Text   << '\x01';
+    return oss.str();
+}
+
+std::string TaifexORGenerator::Serializej(const FIX_j_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "45="  << msg.RefSeqNum   << '\x01';
+    oss << "372=" << msg.RefMsgType    << '\x01';
+    oss << "380=" << msg.BusinessRejectReason       << '\x01';
+    oss << "58="  << msg.Text     << '\x01';
+    return oss.str();
+}
+
 // void TaifexORGenerator::AddSessionID(uint16_t v)
 // {
 //     if(std::find(m_vec_sessionID.begin(), m_vec_sessionID.end(), v) == m_vec_sessionID.end())

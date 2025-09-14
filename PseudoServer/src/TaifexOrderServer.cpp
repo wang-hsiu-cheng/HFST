@@ -1,65 +1,40 @@
 #include "TaifexOrderServer.h"
 
-int Session::RecvSinglePacket(char* outputBuffer, unsigned int flags)
-{
-    while(1) 
-    {
-        // printf("[%d] 0 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
-        if(m_recvBufferLeftSize == 0)
-        {
-            int recvSize = recv(m_sockfd, m_recvBuffer.data(), MAX_SIZE, flags);
-            // printf("[%d] recv buffer left size is 0, recvSize = %d\n", GetSessionNum(), recvSize);
-            if(recvSize <= 0)
-            {
-                return recvSize;
-            }
-            m_recvBufferLeftSize = recvSize;
-            m_cur_recvBufferPtr = m_recvBuffer.data();
-        }
-        // printf("[%d] 1 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
-        if(m_currentPacketSize == 0)
-        {
-            if(m_recvBufferLeftSize >= (int)sizeof(FIXhdr_t))
-            {
-                FIXhdr_t* hdr = reinterpret_cast<FIXhdr_t*>(m_cur_recvBufferPtr);
-                m_currentPacketSize = STR_TO_INT(hdr->BodyLength) + 3;
-            }
-        }
-        // printf("[%d] 2 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
-        if(m_recvBufferLeftSize >= m_currentPacketSize && m_currentPacketSize != 0)
-        {
-            std::memcpy(outputBuffer, m_cur_recvBufferPtr, m_currentPacketSize);
-            m_recvBufferLeftSize -= m_currentPacketSize;
-            m_cur_recvBufferPtr += m_currentPacketSize;
-            int retPacketSize = m_currentPacketSize;
-            m_currentPacketSize = 0;
-            // printf("[%d] A retPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), retPacketSize, m_recvBufferLeftSize);
-            return retPacketSize;
-        }
-        else
-        {
-            // printf("[%d] B retPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
-            std::memcpy(m_recvBuffer.data(), m_cur_recvBufferPtr, m_recvBufferLeftSize);
+int Session::RecvSinglePacket(std::string& outputPacket, unsigned int flags) {
+    outputPacket.clear();
 
-            int recvSize = recv(m_sockfd, m_recvBuffer.data() + m_recvBufferLeftSize, MAX_SIZE - m_recvBufferLeftSize, flags);
-            // printf("[%d] QQQ1 recv recvSize = %d, retPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), recvSize, m_currentPacketSize, m_recvBufferLeftSize);
-            if(recvSize <= 0)
-            {
-                return recvSize;
-            }
-            m_recvBufferLeftSize += recvSize;
-            m_cur_recvBufferPtr = m_recvBuffer.data();
-            // printf("[%d] QQQ2 recv recvSize = %d, retPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), recvSize, m_currentPacketSize, m_recvBufferLeftSize);
+    while (true) {
+        // 先檢查內部 buffer 是否已經有完整封包
+        size_t pos = findCompletePacket();
+        cout << "pos: "<< pos << endl;
+        if (pos != MAX_SIZE) {
+            // cout << "t2";
+            // 取出完整封包
+            outputPacket.assign(m_recvBuffer.begin(), m_recvBuffer.begin() + pos);
+            // 移除已處理的資料
+            m_recvBuffer.erase(m_recvBuffer.begin(), m_recvBuffer.begin() + pos);
+            std::cout << outputPacket << std::endl;
+            return outputPacket.size();
         }
-        // printf("[%d] 3 m_currentPacketSize = %d, m_recvBufferLeftSize = %d\n", GetSessionNum(), m_currentPacketSize, m_recvBufferLeftSize);
+
+        // buffer 不夠完整，從 socket 接收新資料
+        // cout << "t1";
+        ssize_t recvSize = recv(m_sockfd, m_tmpRecvBuffer.data(), MAX_SIZE, flags);
+        // std::cout << m_tmpRecvBuffer.data() << std::endl;
+        if (recvSize <= 0) {
+            return recvSize; // 0: closed, -1: error
+        }
+
+        // 加入內部 buffer
+        m_recvBuffer.insert(m_recvBuffer.end(),
+                            m_tmpRecvBuffer.begin(),
+                            m_tmpRecvBuffer.begin() + recvSize);
     }
-
-    return 0;
 }
 
-int Session::SendPacket(const std::string &buf, int len)
+int Session::SendPacket(const std::string &buf)
 {
-    int sentSize = send(m_sockfd, buf.data(), len, 0);
+    int sentSize = send(m_sockfd, buf.data(), buf.size(), 0);
     m_msgSeqNum++;
     return sentSize;
 }
@@ -109,12 +84,12 @@ int TaifexOrderServer::Start()
         m_vec_threads.emplace_back([this, session, clientAddr]() 
         {
             // start login
-            char buffer[4096] = {0};
+            std::string buffer;
             int recvSize = 0;
             int recvMsgError = 0;
             auto start = std::chrono::steady_clock::now();
             std::cout << "[Session " << session->GetSessionNum() << "] Connected from " << inet_ntoa(clientAddr.sin_addr) << std::endl;
-            m_hdr.MsgSeqNum = -1;
+            m_hdr.MsgSeqNum = 0;
             currentState = State::Logging;
             currentOrderState = OrderState::Idle;
 
@@ -134,7 +109,7 @@ int TaifexOrderServer::Start()
                         EnableHeartBeat();
                         sleep(m_heartbeat_interval_sec * 2);
                         if (m_en_hb) {
-                            session->SendPacket(m_messenger.Make0((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_0_t));
+                            session->SendPacket(m_messenger.Make0(buffer, m_hdr, session->GetMsgSeqNum()));
                             {
                                 std::lock_guard<std::mutex> lock(m_sessionMutex);
                                 m_sent_0_cnt++;
@@ -142,7 +117,7 @@ int TaifexOrderServer::Start()
                             printf("[SERVER][heartbeat] port %d, session %d, send 0(%d)\n", m_port, session->GetSessionNum(), m_sent_0_cnt);
                         }
                         if (m_rcv) {
-                            session->SendPacket(m_messenger.Make1((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_1_t));
+                            session->SendPacket(m_messenger.Make1(buffer, m_hdr, session->GetMsgSeqNum()));
                         }
                     }
                 }
@@ -151,6 +126,7 @@ int TaifexOrderServer::Start()
 
             while (1) {
                 recvSize = session->RecvSinglePacket(buffer);
+                std::cout << "buffer size: " << buffer.size() << std::endl;
                 m_rcv = false;
                 if (recvSize <= 0) 
                 {
@@ -163,15 +139,15 @@ int TaifexOrderServer::Start()
                     case State::Logging:
                         if (m_hdr.MessageType == order.FIXMsgType["Logon"] && !recvMsgError) {
                             m_rcv = true;
-                            if (m_messenger.ReceiveA((uint8_t*)buffer, &m_A_data)) {
+                            if (m_messenger.ReceiveA(buffer, &m_A_data)) {
                                 SetHeartBeatIntervalInSec(m_A_data.HeartBtInt);
-                                session->SendPacket(m_messenger.MakeA((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_A_t));
+                                session->SendPacket(m_messenger.MakeA(buffer, m_hdr, session->GetMsgSeqNum()));
                                 printf("[SERVER] port %d, session %d, send A \n", m_port, session->GetSessionNum());
                                 isLogon = true;
                                 currentState = State::Ordering;
                                 std::cout << "Ordering" << std::endl;
                             } else {
-                                session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                                session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                                 start = std::chrono::steady_clock::now();
                                 currentState = State::SendingLogout;
                                 std::cout << "SendingLogout" << std::endl;
@@ -184,52 +160,52 @@ int TaifexOrderServer::Start()
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["TestRequest"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make0((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_0_t));
+                            session->SendPacket(m_messenger.Make0(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Logging;
                             std::cout << "Logging" << std::endl;
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["ResendRequest"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make2resp((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_2_t));
+                            session->SendPacket(m_messenger.Make2resp(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Logging;
                             std::cout << "Logging" << std::endl;
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["RejectSession"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make3resp((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_3_t));
+                            session->SendPacket(m_messenger.Make3resp(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Logging;
                             std::cout << "Logging" << std::endl;      
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["Logout"]) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                            session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Idle;
                             std::cout << "Logoutted" << std::endl;
                             return 1;
                         }
                         else if (recvMsgError == 2) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make2(&m_2_data, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_2_t));
+                            session->SendPacket(m_messenger.Make2(&m_2_data, m_hdr, session->GetMsgSeqNum()));
                             printf("[SERVER] port %d, session %d, send 2 \n", m_port, session->GetSessionNum());
                             currentState = State::Logging;
                             std::cout << "Logging" << std::endl;
                         }
                         else if (recvMsgError == 3) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make3(&m_3_data, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_3_t));
+                            session->SendPacket(m_messenger.Make3(&m_3_data, m_hdr, session->GetMsgSeqNum()));
                             printf("[SERVER] port %d, session %d, send 3 \n", m_port, session->GetSessionNum());
                             currentState = State::Logging;
                             std::cout << "Logging" << std::endl;
                         }
                         else if (recvMsgError == 5) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                            session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                             start = std::chrono::steady_clock::now();
                             currentState = State::SendingLogout;
                             std::cout << "SendingLogout" << std::endl;
                         }
                         else {
-                            session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                            session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                             start = std::chrono::steady_clock::now();
                             currentState = State::SendingLogout;
                             std::cout << "error state order, SendingLogout" << std::endl;
@@ -241,34 +217,16 @@ int TaifexOrderServer::Start()
                             m_hdr.MessageType == order.FIXMsgType["OrderCancelRequest"] ||
                             m_hdr.MessageType == order.FIXMsgType["OrderStatus"]) {
                             m_rcv = true;
-                            bool isOrderAccepted = false;
-                            switch (currentOrderState) {
-                                case OrderState::Idle:
-                                    uint8_t *bug;
-                                    isOrderAccepted = m_messenger.ReceiveOrder(bug, m_hdr.MessageType);
-                                    if (isOrderAccepted) {
-                                        currentOrderState = OrderState::SendExecutionReport;
-                                        std::cout << "SendExecutionReport" << std::endl;
-                                    } else {
-                                        currentOrderState = OrderState::SendCancelReject;
-                                        std::cout << "SendCancelReject" << std::endl;
-                                    }
-                                    break;
-                                case OrderState::SendExecutionReport:
-                                    session->SendPacket(m_messenger.Make8((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_8_t));
-                                    printf("[SERVER] port %d, session %d, send 8 \n", m_port, session->GetSessionNum());
-                                    currentOrderState = OrderState::Idle;
-                                    break;
-                                case OrderState::SendCancelReject:
-                                    session->SendPacket(m_messenger.Make9((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_9_t));
-                                    printf("[SERVER] port %d, session %d, send 9 \n", m_port, session->GetSessionNum());
-                                    currentOrderState = OrderState::Idle;
-                                    break;
-                                default:
-                                    currentOrderState = OrderState::Idle;
-                                    break;
+                            bool isOrderAccepted = m_messenger.ReceiveOrder(buffer, m_hdr.MessageType);
+                            if (isOrderAccepted) {
+                                session->SendPacket(m_messenger.Make8(buffer, m_hdr, session->GetMsgSeqNum()));
+                                printf("[SERVER] port %d, session %d, send 8 \n", m_port, session->GetSessionNum());
+                                std::cout << "SendExecutionReport" << std::endl;
+                            } else {
+                                session->SendPacket(m_messenger.Make9(buffer, m_hdr, session->GetMsgSeqNum()));
+                                printf("[SERVER] port %d, session %d, send 9 \n", m_port, session->GetSessionNum());
+                                std::cout << "SendCancelReject" << std::endl;
                             }
-                            currentState = State::Ordering;
                         }
                         else if ((m_hdr.MessageType == order.FIXMsgType["Heartbeat"] && !recvMsgError)) {
                             m_rcv = true;
@@ -277,45 +235,45 @@ int TaifexOrderServer::Start()
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["TestRequest"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make0((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_0_t));
+                            session->SendPacket(m_messenger.Make0(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Ordering;
                             std::cout << "Ordering" << std::endl;
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["ResendRequest"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make2resp((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_2_t));
+                            session->SendPacket(m_messenger.Make2resp(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Ordering;
                             std::cout << "Ordering" << std::endl;
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["RejectSession"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make3resp((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_3_t)); 
+                            session->SendPacket(m_messenger.Make3resp(buffer, m_hdr, session->GetMsgSeqNum())); 
                             currentState = State::Ordering;
                             std::cout << "Ordering" << std::endl;     
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["Logout"]) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                            session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::Idle;
                             std::cout << "Logoutted" << std::endl;
                             return 1;
                         }
                         else if (recvMsgError == 2) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make2(&m_2_data, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_2_t));
+                            session->SendPacket(m_messenger.Make2(&m_2_data, m_hdr, session->GetMsgSeqNum()));
                             printf("[SERVER] port %d, session %d, send 2 \n", m_port, session->GetSessionNum());
                             currentState = State::Ordering;
                             std::cout << "Ordering" << std::endl;
                         }
                         else if (recvMsgError == 3) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make3(&m_3_data, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_3_t));
+                            session->SendPacket(m_messenger.Make3(&m_3_data, m_hdr, session->GetMsgSeqNum()));
                             printf("[SERVER] port %d, session %d, send 3 \n", m_port, session->GetSessionNum());
                             currentState = State::Ordering;
                             std::cout << "Ordering" << std::endl;
                         }
                         else {
-                            session->SendPacket(m_messenger.Make5((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_5_t));
+                            session->SendPacket(m_messenger.Make5(buffer, m_hdr, session->GetMsgSeqNum()));
                             start = std::chrono::steady_clock::now();
                             currentState = State::SendingLogout;
                             std::cout << "error state order, SendingLogout" << std::endl;
@@ -335,7 +293,7 @@ int TaifexOrderServer::Start()
                         }
                         else if (m_hdr.MessageType == order.FIXMsgType["TestRequest"] && !recvMsgError) {
                             m_rcv = true;
-                            session->SendPacket(m_messenger.Make0((uint8_t*)buffer, m_hdr, session->GetMsgSeqNum()), sizeof(FIX_0_t));
+                            session->SendPacket(m_messenger.Make0(buffer, m_hdr, session->GetMsgSeqNum()));
                             currentState = State::SendingLogout;
                             std::cout << "Logoutted" << std::endl;
                         }
@@ -372,6 +330,6 @@ int TaifexOrderServer::Start()
 
 int main()
 {
-    TaifexOrderServer server("127.0.0.1", 9000, 10);
+    TaifexOrderServer server("127.0.0.1", 9000, 1);
     server.Start();
 }

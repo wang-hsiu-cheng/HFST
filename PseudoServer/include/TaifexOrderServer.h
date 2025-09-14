@@ -21,6 +21,8 @@
 #include "TaifexORGenerator.h"
 #include "ServerMessenger.h"
 
+using namespace std;
+
 class Session
 {
 public:
@@ -31,8 +33,9 @@ public:
 		m_msgSeqNum(1),
 		m_recvBufferLeftSize(0)
 		{
-			m_recvBuffer.resize(MAX_SIZE);
-			m_cur_recvBufferPtr = m_recvBuffer.data();
+			m_recvBuffer.resize(0);
+            m_tmpRecvBuffer.resize(MAX_SIZE);
+			m_cur_recvBufferPtr = m_recvBuffer;
 		}
 
 		~Session()
@@ -45,9 +48,9 @@ public:
     inline uint16_t GetMsgSeqNum() const { return m_msgSeqNum; }
 	int GetSessionNum() const { return m_sessionNum; }
 	
-	int RecvSinglePacket(char* outputBuffer, unsigned int flags = 0);
+	int RecvSinglePacket(std::string& outputBuffer, unsigned int flags = 0);
 
-    int SendPacket(const std::string &buf, int len);
+    int SendPacket(const std::string &buf);
 
 private:
 	int m_sockfd;
@@ -55,12 +58,26 @@ private:
 	int m_listenPort;
 	uint16_t m_msgSeqNum;
 	
-	unsigned char* m_cur_recvBufferPtr;
+	std::string m_cur_recvBufferPtr;
 	
 	int m_currentPacketSize = 0;
     
-    std::vector<unsigned char> m_recvBuffer;
+    std::string m_recvBuffer;
+    std::string m_tmpRecvBuffer;
     int m_recvBufferLeftSize = 0;
+    // 用於 search 查找 "10="
+    const std::string fixChecksumPattern = "10=";
+
+    size_t findCompletePacket() {
+        size_t pos = m_recvBuffer.find(fixChecksumPattern);
+        if (pos != std::string::npos) {
+            // confirm we have at least "10=NNN␁" (7 bytes)
+            if (pos + 7 <= m_recvBuffer.size()) {
+                return pos + 7;  // return packet length
+            }
+        }
+        return MAX_SIZE; // not found or incomplete
+    }
 };
 
 class TaifexOrderServer

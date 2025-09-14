@@ -30,6 +30,7 @@ add_library(ServerMessenger src/ServerMessenger.cpp)
 target_link_libraries(ServerMessenger
   TaifexOrder
   TaifexOrderUtility
+  TaifexORGenerator
   ${ARMADILLO_LIBRARIES})
 
 # Create executable
