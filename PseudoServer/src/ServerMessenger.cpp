@@ -334,7 +334,7 @@ string ServerMessenger::Make8(const std::string &buf, FIXhdr_t hdr, uint16_t ser
     m_8_data.OrderID = "Given by broker";
     m_8_data.ClOrdID = "Given by broker";
     m_8_data.OrigClOrdID = "Given by broker";
-    m_8_data.ExecID = "";
+    m_8_data.ExecID = "0";
     m_8_data.ExecType = '0';
     m_8_data.OrdStatus = '0';
     m_8_data.OrdRejReason = 0;
@@ -351,7 +351,7 @@ string ServerMessenger::Make8(const std::string &buf, FIXhdr_t hdr, uint16_t ser
     m_8_data.LeavesQty = 0.0;
     m_8_data.CumQty = 0.0;
     m_8_data.AvgPx = 0;
-    m_8_data.Text = "";
+    m_8_data.Text = "text";
     m_8_data.TwseIvacnoFlag = '1';
     m_8_data.TwseOrdType = '0';
     m_8_data.TwseExCode = '0';
@@ -366,7 +366,7 @@ string ServerMessenger::Make8(const std::string &buf, FIXhdr_t hdr, uint16_t ser
     hdr.SendingTime = util.GetMsg_time_t();
     m_8_data.hdr = hdr;
     m_8_str = gen.Serialize8(m_8_data);
-    hdr.BodyLength = std::to_string(m_8_str.size());
+    hdr.BodyLength = std::to_string(m_8_str.size() + 1);
     m_8_str = "8=FIX.4.4" + std::string(1, SOH) + "9=" + std::string(hdr.BodyLength) + std::string(1, SOH) + m_8_str;
     m_8_str.append("10=" + util.FIXComputeCheckSum(m_8_str) + std::string(1, SOH));
 
@@ -404,29 +404,6 @@ string ServerMessenger::Make9(const std::string &buf, FIXhdr_t hdr, uint16_t ser
 
     return m_9_str;
 }
-
-// string ServerMessenger::MakeDs(std::vector<FIX_A_t> &vec, int num)
-// {
-//     int cnt = 0, r = 0;
-//     FIX_A_t A_;
-//     uint8_t execType = 0;
-
-//     while(cnt < num)
-//     {
-//         r = rand() % 100;
-//         if(r < 35)
-//         {
-//             execType = '4';
-//         }
-//         else
-//         {
-//             execType = '0';
-//         }
-//         // MakeD(&A_, execType);
-//         vec.push_back(A_);
-//         cnt++;
-//     }
-// }
 
 string ServerMessenger::getChecksumFromFIX(const std::string& buf) {
     const std::string tag = "10=";
@@ -477,7 +454,6 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& hdr, FIX_2_
         else if (tagNumber == 2 && tag == "9") {
             hdr.BodyLength = value;
             if (STR_TO_INT(hdr.BodyLength) != buf.size() - 22) {
-                std::cout << STR_TO_INT(hdr.BodyLength) << ": " << buf.size();
                 reject_msg.RefTagID = '9';
                 reject_msg.SessionRejectReason = 5;
                 reject_msg.Text = "";
@@ -544,7 +520,7 @@ std::string ServerMessenger::DecodeMessage(const std::string &msg, std::string t
         }
         pos = next + 1;
     }
-    throw "no this tag";
+    return "no this tag";
 }
 
 bool ServerMessenger::ReceiveA(std::string &msg, FIX_A_t *logonMsg) {
