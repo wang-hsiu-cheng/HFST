@@ -136,7 +136,7 @@ typedef struct _FIXhdr_t
 #pragma pack(1)
 typedef struct _FIX_A_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     uint16_t EncryptMethod;              // 98
     uint16_t HeartBtInt = 10;            // 108
     uint16_t RawDataLength;              // 95
@@ -148,7 +148,7 @@ typedef struct _FIX_A_t
 #pragma pack(1)
 typedef struct _FIX_0_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string TestReqID;              // 112
     std::string CheckSum;             // 10
 } FIX_0_t;
@@ -157,7 +157,7 @@ typedef struct _FIX_0_t
 #pragma pack(1)
 typedef struct _FIX_1_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string TestReqID;              // 112
     std::string CheckSum;             // 10
 } FIX_1_t;
@@ -166,7 +166,7 @@ typedef struct _FIX_1_t
 #pragma pack(1)
 typedef struct _FIX_2_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     uint16_t BeginSeqNo;              // 7
     uint16_t EndSeqNo;                // 16
     std::string CheckSum;           // 10
@@ -176,7 +176,7 @@ typedef struct _FIX_2_t
 #pragma pack(1)
 typedef struct _FIX_3_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     uint16_t RefSeqNum;              // 45
     uint16_t RefTagID;               // 371
     std::string RefMsgType;          // 372
@@ -189,7 +189,7 @@ typedef struct _FIX_3_t
 #pragma pack(1)
 typedef struct _FIX_4_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     bool GapFillFlag = true;         // 123
     uint16_t NewSeqNo;               // 36
     std::string CheckSum;          // 10
@@ -199,7 +199,7 @@ typedef struct _FIX_4_t
 #pragma pack(1)
 typedef struct _FIX_5_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string Text;                // 58
     std::string CheckSum;          // 10
 } FIX_5_t;
@@ -208,7 +208,7 @@ typedef struct _FIX_5_t
 #pragma pack(1)
 typedef struct _FIX_D_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
 	std::string ClOrdID;             // 11
 	std::string OrderID;             // 37
     std::string Account;             // 1
@@ -230,7 +230,7 @@ typedef struct _FIX_D_t
 #pragma pack(1)
 typedef struct _FIX_F_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string ClOrdID;             // 11
     std::string OrigClOrdID;         // 41
     std::string OrderID;             // 37
@@ -248,7 +248,7 @@ typedef struct _FIX_F_t
 #pragma pack(1)
 typedef struct _FIX_G_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string ClOrdID;             // 11
     std::string OrigClOrdID;         // 41
     std::string OrderID;             // 37
@@ -268,7 +268,7 @@ typedef struct _FIX_G_t
 #pragma pack(1)
 typedef struct _FIX_H_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string ClOrdID;             // 11
     std::string OrderID;             // 37
     std::string Symbol;              // 55
@@ -282,7 +282,7 @@ typedef struct _FIX_H_t
 #pragma pack(1)
 typedef struct _FIX_8_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string OrderID;             // 37
     std::string ClOrdID;             // 11
     std::string OrigClOrdID;         // 41
@@ -314,7 +314,7 @@ typedef struct _FIX_8_t
 #pragma pack(1)
 typedef struct _FIX_9_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     std::string OrderID;             // 37
     std::string ClOrdID;             // 11
     std::string OrigClOrdID;         // 41
@@ -331,7 +331,7 @@ typedef struct _FIX_9_t
 #pragma pack(1)
 typedef struct _FIX_j_t
 {
-    FIXhdr_t hdr;
+    FIXhdr_t Header;
     uint32_t RefSeqNum;              // 45
     std::string RefMsgType;          // 372
     uint8_t BusinessRejectReason;    // 380

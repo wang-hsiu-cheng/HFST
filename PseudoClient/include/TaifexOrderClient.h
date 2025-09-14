@@ -24,51 +24,44 @@
 class Session
 {
 public:
-	Session(int sockfd, int listenPort)
-		: m_sockfd(sockfd),
-		m_listenPort(listenPort),
-		m_msgSeqNum(1),
-		m_recvBufferLeftSize(0)
-		{
-			m_recvBuffer.resize(0);
-            m_tmpRecvBuffer.resize(MAX_SIZE);
-			m_cur_recvBufferPtr = m_recvBuffer;
-		}
+	Session(int sockfd)
+	: m_sockfd(sockfd), m_msg_seq_num(1), m_recv_buffer_left_size(0)
+    {
+        m_recv_buffer.resize(0);
+        m_tmp_recv_buffer.resize(MAX_SIZE);
+        m_cur_recv_buffer_ptr = m_recv_buffer;
+    }
 
-		~Session()
-		{
-			if(m_sockfd >= 0)
-				close(m_sockfd);
-		}
+    ~Session()
+    {
+        if(m_sockfd >= 0)
+            close(m_sockfd);
+    }
 
 	int GetSockfd() const { return m_sockfd; }
-    inline uint16_t GetMsgSeqNum() const { return m_msgSeqNum; }
-	
-	int RecvSinglePacket(std::string& outputBuffer, unsigned int flags = 0);
-
-    int SendPacket(const std::string &buf);
+    inline uint16_t GetMsgSeqNum() const { return m_msg_seq_num; }
+	int RecvSinglePacket(std::string& _outputBuffer, unsigned int _flags = 0);
+    int SendPacket(const std::string &_buf);
 
 private:
 	int m_sockfd;
-	int m_listenPort;
-	uint16_t m_msgSeqNum;
-	
-	std::string m_cur_recvBufferPtr;
+	uint16_t m_msg_seq_num;
 	
 	int m_currentPacketSize = 0;
     
-    std::string m_recvBuffer;
-    std::string m_tmpRecvBuffer;
-    int m_recvBufferLeftSize = 0;
+    std::string m_cur_recv_buffer_ptr;
+    std::string m_recv_buffer;
+    std::string m_tmp_recv_buffer;
+    int m_recv_buffer_left_size = 0;
     // 用於 search 查找 "10="
-    const std::string fixChecksumPattern = "10=";
+    const std::string fix_checksum_pattern = "10=";
 
-    size_t findCompletePacket() {
-        size_t pos = m_recvBuffer.find(fixChecksumPattern);
-        if (pos != std::string::npos) {
+    size_t FindCompletePacket() {
+        size_t _pos = m_recv_buffer.find(fix_checksum_pattern);
+        if (_pos != std::string::npos) {
             // confirm we have at least "10=NNN␁" (7 bytes)
-            if (pos + 7 <= m_recvBuffer.size()) {
-                return pos + 7;  // return packet length
+            if (_pos + 7 <= m_recv_buffer.size()) {
+                return _pos + 7;  // return packet length
             }
         }
         return MAX_SIZE; // not found or incomplete
@@ -91,11 +84,6 @@ public:
         m_client_ip = client_ip;
     }
 
-    void SetUSDelayForReport(int us)
-    {
-        m_report_delay_us = us;
-    }
-
     ~TaifexOrderClient()
     {
         if (m_sockfd >= 0)
@@ -104,20 +92,10 @@ public:
 
     int Start();
 
-    void SetHeartBeatIntervalInSec(int sec)
-    {
-        m_heartbeat_interval_sec = sec;
-    }
-
-    void EnableHeartBeat()
-    {
-        m_en_hb = true;
-    }
-
-    void DisableHeartBeat()
-    {
-        m_en_hb = false;
-    }
+    inline void SetUSDelayForReport(int _us) { m_report_delay_us = _us; }
+    inline void SetHeartBeatIntervalInSec(int _sec) { m_heartbeat_interval_sec = _sec; }
+    inline void EnableHeartBeat() { m_en_hb = true; }
+    inline void DisableHeartBeat() { m_en_hb = false; }
 
     int GetRecvDCnt() const { return m_recv_D_cnt; }
     int GetRecvACnt() const { return m_recv_A_cnt; }
@@ -132,15 +110,13 @@ public:
 private:
     int m_sockfd;
     int m_port;
-    uint16_t clientSeqNum = 0;
     std::string m_client_ip;
-    std::string ClOrdID;
     FIXhdr_t m_hdr;
     FIX_A_t m_A_data;
     FIX_2_t m_2_data;
     FIX_3_t m_3_data;
-    State currentState;
-    OrderState currentOrderState;
+    State current_state;
+    OrderState current_order_state;
 
     std::map<int, uint16_t> m_map_idx_target_id;
     std::map<int, uint16_t> m_map_idx_sender_id;
@@ -148,8 +124,8 @@ private:
 
     bool m_en_hb = false;
     bool m_rcv = false;
-    bool isLogon = false;
-    bool is_state_changed = false;
+    bool is_logon = false;
+    bool is_waiting_order = false;
 
     int m_recv_D_cnt = 0;
     int m_recv_A_cnt = 0;
