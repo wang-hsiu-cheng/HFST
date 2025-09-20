@@ -2,6 +2,7 @@
 #define TAIFEX_ORDER_UTILITY_H
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <memory>
 #include <cstring>

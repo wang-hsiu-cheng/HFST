@@ -26,41 +26,41 @@ using namespace std;
 class Session
 {
 public:
-	Session(int sockfd, int sessionNum, int listenPort)
-		: m_sockfd(sockfd),
-		m_sessionNum(sessionNum),
-		m_listenPort(listenPort),
-		m_msgSeqNum(1),
-		m_recvBufferLeftSize(0)
-		{
-			m_recvBuffer.resize(0);
+    Session(int sockfd, int sessionNum, int listenPort)
+	: m_sockfd(sockfd),
+	m_sessionNum(sessionNum),
+	m_listenPort(listenPort),
+	m_msgSeqNum(1),
+	m_recvBufferLeftSize(0)
+	{
+	    m_recvBuffer.resize(0);
             m_tmpRecvBuffer.resize(MAX_SIZE);
-			m_cur_recvBufferPtr = m_recvBuffer;
-		}
+	    m_cur_recvBufferPtr = m_recvBuffer;
+	}
 
-		~Session()
-		{
-			if(m_sockfd >= 0)
-				close(m_sockfd);
-		}
+    ~Session()
+    {
+        if(m_sockfd >= 0)
+	    close(m_sockfd);
+    }
 
-	int GetSockfd() const { return m_sockfd; }
+    int GetSockfd() const { return m_sockfd; }
     inline uint16_t GetMsgSeqNum() const { return m_msgSeqNum; }
-	int GetSessionNum() const { return m_sessionNum; }
+    int GetSessionNum() const { return m_sessionNum; }
 	
-	int RecvSinglePacket(std::string& outputBuffer, unsigned int flags = 0);
+    int RecvSinglePacket(std::string& outputBuffer, unsigned int flags = 0);
 
     int SendPacket(const std::string &buf);
 
 private:
-	int m_sockfd;
-	int m_sessionNum;
-	int m_listenPort;
-	uint16_t m_msgSeqNum;
+    int m_sockfd;
+    int m_sessionNum;
+    int m_listenPort;
+    uint16_t m_msgSeqNum;
 	
-	std::string m_cur_recvBufferPtr;
+    std::string m_cur_recvBufferPtr;
 	
-	int m_currentPacketSize = 0;
+    int m_currentPacketSize = 0;
     
     std::string m_recvBuffer;
     std::string m_tmpRecvBuffer;
