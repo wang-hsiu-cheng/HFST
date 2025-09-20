@@ -19,7 +19,7 @@ int Session::RecvSinglePacket(std::string& _outputPacket, unsigned int _flags) {
 
         // buffer 不夠完整，從 socket 接收新資料
         // cout << "t1";
-        ssize_t recvSize = recv(m_sockfd, &m_tmp_recv_buffer, MAX_SIZE, _flags);
+        ssize_t recvSize = recv(m_sockfd, reinterpret_cast<void*>(&m_tmp_recv_buffer[0]), MAX_SIZE, _flags);
         // std::cout << m_tmp_recv_buffer.data() << std::endl;
         if (recvSize <= 0) {
             return recvSize; // 0: closed, -1: error
