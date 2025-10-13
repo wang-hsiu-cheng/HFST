@@ -83,7 +83,7 @@ private:
 class TaifexOrderServer
 {
 public:
-    TaifexOrderServer(std::string server_ip, int port, int expectedSessions)
+    TaifexOrderServer(int port, int expectedSessions)
     : m_port(port), m_expectedSessions(expectedSessions)
     {
         m_sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -92,8 +92,6 @@ public:
             std::cerr << "Failed to create server socket." << std::endl;
             std::exit(EXIT_FAILURE);
         }
-
-        m_server_ip = server_ip;
     }
 
     void SetUSDelayForReport(int us)
@@ -139,7 +137,6 @@ private:
     int m_port;
     int m_expectedSessions;
     uint16_t serverSeqNum = 0;
-    std::string m_server_ip;
     std::string ClOrdID;
     FIXhdr_t m_hdr;
     FIX_A_t m_A_data;

@@ -45,7 +45,7 @@ int TaifexOrderServer::Start()
 {
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(m_server_ip.c_str());
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(m_port);
     if (bind(m_sockfd, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0) 
     {
@@ -59,7 +59,7 @@ int TaifexOrderServer::Start()
         std::exit(EXIT_FAILURE);
     }
 
-    std::cout << "Server listening on " << m_server_ip << ":" << m_port << " with " << m_expectedSessions << " sessions." << std::endl;
+    std::cout << "Server listening on " << serverAddr.sin_addr.s_addr << ":" << m_port << " with " << m_expectedSessions << " sessions." << std::endl;
 
     for (int i = 0; i < m_expectedSessions; i++) 
     {
@@ -330,6 +330,6 @@ int TaifexOrderServer::Start()
 
 int main()
 {
-    TaifexOrderServer server("127.0.0.1", 9000, 1);
+    TaifexOrderServer server(9000, 1);
     server.Start();
 }
