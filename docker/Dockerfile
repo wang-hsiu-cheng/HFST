@@ -38,7 +38,9 @@ RUN apt update && apt install -y \
     make \
     python3 \
     python3-pip \
-    bash-completion
+    bash-completion \
+    libpcap-dev \
+    net-tools
 
 RUN apt-get update && apt-get dist-upgrade -y \
     && apt-get autoremove -y \
