@@ -53,7 +53,6 @@ private:
     std::string m_recv_buffer;
     std::string m_tmp_recv_buffer;
     int m_recv_buffer_left_size = 0;
-    // 用於 search 查找 "10="
     const std::string fix_checksum_pattern = "10=";
 
     size_t FindCompletePacket() {

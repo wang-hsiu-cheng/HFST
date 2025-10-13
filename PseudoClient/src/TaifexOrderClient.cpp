@@ -4,28 +4,19 @@ int Session::RecvSinglePacket(std::string& _outputPacket, unsigned int _flags) {
     _outputPacket.clear();
 
     while (true) {
-        // 先檢查內部 buffer 是否已經有完整封包
         size_t pos = FindCompletePacket();
         cout << "pos: "<< pos << endl;
         if (pos != MAX_SIZE) {
-            // cout << "t2";
-            // 取出完整封包
             _outputPacket.assign(m_recv_buffer.begin(), m_recv_buffer.begin() + pos);
-            // 移除已處理的資料
             m_recv_buffer.erase(m_recv_buffer.begin(), m_recv_buffer.begin() + pos);
             std::cout << _outputPacket << std::endl;
             return _outputPacket.size();
         }
-
-        // buffer 不夠完整，從 socket 接收新資料
-        // cout << "t1";
         ssize_t recvSize = recv(m_sockfd, reinterpret_cast<void*>(&m_tmp_recv_buffer[0]), MAX_SIZE, _flags);
-        // std::cout << m_tmp_recv_buffer.data() << std::endl;
         if (recvSize <= 0) {
             return recvSize; // 0: closed, -1: error
         }
 
-        // 加入內部 buffer
         m_recv_buffer.insert(m_recv_buffer.end(),
                             m_tmp_recv_buffer.begin(),
                             m_tmp_recv_buffer.begin() + recvSize);
@@ -64,7 +55,6 @@ int TaifexOrderClient::Start()
     }
     std::cout << "Connected to server.\n";
 
-    // 將連線封裝成 Session 物件
     auto session = std::make_shared<Session>(m_sockfd);
     // start login
     std::string buffer;
@@ -289,6 +279,10 @@ int TaifexOrderClient::Start()
 
 int main()
 {
-    TaifexOrderClient client("127.0.0.1", 9000);
+    string ip;  // 127.0.0.1 or 192.168.65.3 or 140.114.14.222
+
+    cout << "Enter the IP of Server: ";
+    cin >> ip;
+    TaifexOrderClient client(ip, 9000);
     client.Start();
 }

@@ -14,7 +14,7 @@ string ClientMessenger::MakeA(const std::string &_buf, FIXhdr_t _header, uint16_
     m_A_data.HeartBtInt = 10;
     m_A_data.RawData = appendNo * (password + 100);
     m_A_data.RawDataLength = 5;
-    // m_A_str = std::string(reinterpret_cast<const char*>(&m_A_data), sizeof(m_A_data));
+
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "A";
     _header.MsgSeqNum = _clientSeqNum;
@@ -40,7 +40,6 @@ string ClientMessenger::Make0(const std::string &_buf, FIXhdr_t _header, uint16_
     test_reqID = DecodeMessage(_buf, "2");
 
     m_0_data.TestReqID = test_reqID;
-    // m_0_str = std::string(reinterpret_cast<const char*>(&m_0_data), sizeof(m_0_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "0";
@@ -67,7 +66,6 @@ string ClientMessenger::Make1(const std::string &_buf, FIXhdr_t _header, uint16_
     test_reqID = DecodeMessage(_buf, "2");
 
     m_1_data.TestReqID = test_reqID;
-    // m_1_str = std::string(reinterpret_cast<const char*>(&m_1_data), sizeof(m_1_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "1";
@@ -88,8 +86,6 @@ string ClientMessenger::Make1(const std::string &_buf, FIXhdr_t _header, uint16_
 string ClientMessenger::Make2(FIX_2_t *m_2_data, FIXhdr_t _header, uint16_t _clientSeqNum) 
 {
     std::string m_2_str, newSenderID;
-
-    // m_2_str = std::string(reinterpret_cast<const char*>(&m_2_data), sizeof(m_2_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "2";
@@ -115,8 +111,6 @@ string ClientMessenger::Make2resp(const std::string &_buf, FIXhdr_t _header, uin
 string ClientMessenger::Make3(FIX_3_t *m_3_data, FIXhdr_t _header, uint16_t _clientSeqNum) 
 {
     std::string m_3_str, newSenderID;
-
-    // m_3_str = std::string(reinterpret_cast<const char*>(&m_3_data), sizeof(m_3_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "3";
@@ -146,7 +140,6 @@ string ClientMessenger::Make4(const std::string &_buf, FIXhdr_t _header, uint16_
 
     m_4_data.GapFillFlag = true;
     m_4_data.NewSeqNo = _clientSeqNum;
-    // m_4_str = std::string(reinterpret_cast<const char*>(&m_4_data), sizeof(m_4_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "4";
@@ -170,7 +163,6 @@ string ClientMessenger::Make5(const std::string &_buf, FIXhdr_t _header, uint16_
     FIX_5_t m_5_data;
 
     m_5_data.Text = "text";
-    // m_5_str = std::string(reinterpret_cast<const char*>(&m_5_data), sizeof(m_5_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "5";
@@ -209,7 +201,6 @@ string ClientMessenger::MakeD(const std::string &_buf, FIXhdr_t _header, uint16_
     m_D_data.TwseOrdType = '0';
     m_D_data.TwseExCode = '0';
     m_D_data.TwseRejStaleOrd = false;
-    // m_D_str = std::string(reinterpret_cast<const char*>(&m_D_data), sizeof(m_D_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "D";
@@ -242,7 +233,6 @@ string ClientMessenger::MakeF(const std::string &_buf, FIXhdr_t _header, uint16_
     m_F_data.TwselvacnoFlag = '1';
     m_F_data.TwseExCode = '0';
     m_F_data.TwseRejStaleOrd = false;
-    // m_F_str = std::string(reinterpret_cast<const char*>(&m_F_data), sizeof(m_F_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "F";
@@ -277,7 +267,6 @@ string ClientMessenger::MakeG(const std::string &_buf, FIXhdr_t _header, uint16_
     m_G_data.TwselvacnoFlag = '1';
     m_G_data.TwseOrdType = '0';
     m_G_data.TwseExCode = '0';
-    // m_G_str = std::string(reinterpret_cast<const char*>(&m_G_data), sizeof(m_G_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "G";
@@ -306,7 +295,6 @@ string ClientMessenger::MakeH(const std::string &_buf, FIXhdr_t _header, uint16_
     m_H_data.Side = '1';
     m_H_data.TwselvacnoFlag = '1';
     m_H_data.TwseExCode = '0';
-    // m_H_str = std::string(reinterpret_cast<const char*>(&m_H_data), sizeof(m_H_data));
 
     _header.BeginString = "FIX.4.4";
     _header.MessageType = "H";
@@ -326,15 +314,15 @@ string ClientMessenger::MakeH(const std::string &_buf, FIXhdr_t _header, uint16_
 
 string ClientMessenger::getChecksumFromFIX(const std::string& _buf) {
     const std::string tag = "10=";
-    size_t pos = _buf.rfind(tag);  // 找最後一個出現的 "10="，通常是最後一欄
+    size_t pos = _buf.rfind(tag);
     if (pos == std::string::npos || pos + 6 > _buf.size()) {
-        return "";  // 找不到，或太短
+        return "";
     }
-    size_t end = _buf.find('\x01', pos);  // 找 SOH 結尾
+    size_t end = _buf.find('\x01', pos);
     if (end == std::string::npos) {
         return "";
     }
-    std::string checksum = _buf.substr(pos + 3, end - (pos + 3));  // 擷取值
+    std::string checksum = _buf.substr(pos + 3, end - (pos + 3));
     return checksum;
 }
 
