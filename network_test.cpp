@@ -63,8 +63,8 @@ struct pseudo_header {
 //     u_short th_urp;     /* urgent pointer */
 // };
 
-struct in_addr server_address;
-u_short server_port;
+struct in_addr local_address, remote_address;
+u_short rcv_src_port, rcv_dst_port;
 struct ether_header *eth;
 struct ip *iph;
 int ip_header_len;
@@ -96,9 +96,8 @@ unsigned short csum(unsigned short *ptr, int nbytes) {
     if (nbytes == 1) {
         sum += *(unsigned char*)ptr;
     }
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
-    return (unsigned short)(~sum);
+    sum = ~((sum >> 16) + (sum & 0xffff)) & 0xffff;
+    return (unsigned short)sum;
 }
 
 void ether_sender(std::string _payload, struct tcphdr *_send_tcph, struct ip *_send_iph)
@@ -137,7 +136,7 @@ void ether_sender(std::string _payload, struct tcphdr *_send_tcph, struct ip *_s
     // Interface info
     struct sockaddr_ll device;
     memset(&device, 0, sizeof(device));
-    device.sll_ifindex = if_nametoindex("lo"); // replace with your iface
+    device.sll_ifindex = if_nametoindex("eth0"); // replace with your iface
     device.sll_halen = ETH_ALEN;
     memcpy(device.sll_addr, dst_mac, 6);
     
@@ -164,8 +163,8 @@ void ip_encoder(int payload_len)
     send_iph->ip_off = 0;       /* fragment offset field */
     send_iph->ip_ttl = 64;       /* time to live */
     send_iph->ip_p = IPPROTO_TCP;         /* protocol */
-    send_iph->ip_src.s_addr = inet_addr("127.0.0.1");
-    send_iph->ip_dst.s_addr = inet_addr("127.0.0.1");
+    send_iph->ip_src.s_addr = local_address.s_addr;
+    send_iph->ip_dst.s_addr = remote_address.s_addr;
 }
 
 void tcp_encoder(string payload, int FLAG)
@@ -179,8 +178,8 @@ void tcp_encoder(string payload, int FLAG)
     } else if (FLAG == TH_ACK || FLAG == TH_PUSH || FLAG == TH_PUSH+TH_ACK) {
         send_tcph->th_seq = tcph->th_ack;
         send_tcph->th_ack = tcph->th_seq + 1;
-        send_tcph->th_sport = tcph->th_dport;
-        send_tcph->th_dport = tcph->th_sport;
+        send_tcph->th_sport = rcv_dst_port;
+        send_tcph->th_dport = rcv_src_port;
     }
     send_tcph->th_flags = FLAG;
     send_tcph->th_off = 5;
@@ -220,28 +219,34 @@ void tcp_encoder(string payload, int FLAG)
 void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
     // Print in hex
-    for (u_int i = 0; i < header->len; i++) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0')
-                  << (unsigned int)packet[i] << " ";
-        if ((i + 1) % 16 == 0) std::cout << std::endl;
-    }
-    std::cout << std::dec << std::endl << "--------------------------------" << std::endl;
+    // for (u_int i = 0; i < header->len; i++) {
+    //     std::cout << std::hex << std::setw(2) << std::setfill('0')
+    //               << (unsigned int)packet[i] << " ";
+    //     if ((i + 1) % 16 == 0) std::cout << std::endl;
+    // }
+    // std::cout << std::dec << std::endl << "--------------------------------" << std::endl;
 
     // 解析 Ethernet Header
     eth = (struct ether_header*) packet;
     if (ntohs(eth->ether_type) != ETHERTYPE_IP) {
+        cout << "not IP packet" << endl;
         return; // 非 IP 封包
     }
 
     // 解析 IP Header
     iph = (struct ip*)(packet + sizeof(struct ether_header));
     if (iph->ip_p != IPPROTO_TCP) {
+        cout << "not TCP packet" << endl;
         return; // 非 TCP 封包
     }
     // IP header 長度 (iph->ip_hl 是 32-bit word count，所以要 *4 才是 bytes)
     ip_header_len = iph->ip_hl * 4;
-    ip_source_address = iph->ip_src;
-    if (ip_source_address.s_addr != server_address.s_addr) {
+    if (inet_ntoa(iph->ip_src) != inet_ntoa(remote_address)) {
+        cout << "target: " << inet_ntoa(remote_address) << " ; in: " << inet_ntoa(iph->ip_src) << " different src ip" << endl;
+        return;
+    }
+    if (inet_ntoa(iph->ip_dst) != inet_ntoa(local_address)) {
+        cout << "me: " << inet_ntoa(local_address) << " ; in: " << inet_ntoa(iph->ip_dst) << " different dest ip" << endl;
         return;
     }
     
@@ -251,8 +256,8 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
     // for (int i = 0; i < 20; i++) {
     //     printf("%02x ", ptr[i]);
     // }
-    if (tcph->th_sport != server_port) {
-        // cout << "error port!" << std::endl;
+    if (tcph->th_dport != rcv_dst_port) {
+        cout << "target: " << rcv_dst_port << " ; in: " << tcph->th_sport << " different tcp" << std::endl;
         return;
     }
     std::cout << "Packet captured, length: " << header->len << " bytes" << std::endl;
@@ -263,13 +268,13 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
             eth->ether_shost[3],
             eth->ether_shost[4],
             eth->ether_shost[5]);
-    cout << "Source IP: " << inet_ntoa(iph->ip_src) << std::endl;
-    cout << "Server IP: " << inet_ntoa(server_address) << std::endl;
     cout << "Captured TCP Packet: "
          << inet_ntoa(iph->ip_src) << ":" << ntohs(tcph->th_sport)
          << " -> "
          << inet_ntoa(iph->ip_dst) << ":" << ntohs(tcph->th_dport)
          << endl;
+    rcv_dst_port = tcph->th_dport;
+    rcv_src_port = tcph->th_sport;
 
     tcp_header_len = tcph->doff * 4;
     char *payload = (char *)((u_char*)tcph + tcp_header_len);
@@ -290,7 +295,7 @@ void main_function()
         if (receive_msg && established) {
             receive_msg = false;
             // process(fix);
-            // sleep(3);
+            sleep(3);
             cout << "<<PUSH>>" << std::endl;
             if (msg_sent)
                 tcp_encoder(app_msg, TH_PUSH);
@@ -307,14 +312,14 @@ void main_function()
             cout << "<<SYN>>" << std::endl;
             tcp_encoder("01234567890123456789", TH_SYN);
         }
-        this_thread::sleep_for(chrono::milliseconds(200));
+        this_thread::sleep_for(chrono::milliseconds(2000));
     }
 }
 
 void ack_function()
 {
     while (1) {
-        this_thread::sleep_for(chrono::milliseconds(200));
+        this_thread::sleep_for(chrono::milliseconds(3000));
         if (receive_msg) {
             sleep(1);
             if (!msg_sent) {
@@ -328,13 +333,13 @@ void ack_function()
 
 int main() {
     char errbuf[PCAP_ERRBUF_SIZE];
-    const char *dev = "lo"; // 可改成你要監聽的介面
+    const char *dev = "eth0"; // 可改成你要監聽的介面
     pcap_t *handle;
 
     std::thread main(main_function);
     main.detach();
-    // std::thread ack(ack_function);
-    // ack.detach();
+    std::thread ack(ack_function);
+    ack.detach();
 
     // 開啟裝置
     handle = pcap_open_live(dev, BUFSIZ, 1, 1000, errbuf);
@@ -343,8 +348,9 @@ int main() {
         return 1;
     }
     cout << "Listening on " << dev << "..." << endl;
-    server_address.s_addr = inet_addr("127.0.0.1");
-    server_port = htons(9000);
+    local_address.s_addr = inet_addr("192.168.65.3");
+    remote_address.s_addr = inet_addr("192.168.65.3");
+    rcv_dst_port = htons(9000);
 
     // 開始捕捉封包
     pcap_loop(handle, 0, packet_handler, nullptr);
