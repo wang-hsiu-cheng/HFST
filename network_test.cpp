@@ -63,8 +63,11 @@ struct pseudo_header {
 //     u_short th_urp;     /* urgent pointer */
 // };
 
+bool init_signal = true;
+std::string local_ip, remote_ip, role;
 struct in_addr local_address, remote_address;
 u_short rcv_src_port, rcv_dst_port;
+uint8_t rcv_flag, last_rcv_flag;
 struct ether_header *eth;
 struct ip *iph;
 int ip_header_len;
@@ -173,9 +176,15 @@ void tcp_encoder(string payload, int FLAG)
         uint32_t isn = rand();
         send_tcph->th_seq = htonl(isn);
         send_tcph->th_ack = 0;
-        send_tcph->th_sport = htons(rand() % 50000 + 1024);
+        if (init_signal) {
+            send_tcph->th_sport = htons(rand() % 50000 + 1024);
+            rcv_dst_port = send_tcph->th_sport;
+            init_signal = false;
+        } else {
+            send_tcph->th_sport = rcv_dst_port;
+        }
         send_tcph->th_dport = htons(9000);
-    } else if (FLAG == TH_ACK || FLAG == TH_PUSH || FLAG == TH_PUSH+TH_ACK) {
+    } else if (FLAG == TH_ACK || FLAG == TH_PUSH || FLAG == TH_PUSH | TH_ACK) {
         send_tcph->th_seq = tcph->th_ack;
         send_tcph->th_ack = tcph->th_seq + 1;
         send_tcph->th_sport = rcv_dst_port;
@@ -185,6 +194,8 @@ void tcp_encoder(string payload, int FLAG)
     send_tcph->th_off = 5;
     send_tcph->th_win = 65495;
     send_tcph->th_urp = 0;
+
+    // cout << "src port: " << send_tcph->th_sport << " dst port: " << send_tcph->th_dport <<  endl;
 
     psh.src_addr = send_iph->ip_src.s_addr;
     psh.dst_addr = send_iph->ip_dst.s_addr;
@@ -218,35 +229,30 @@ void tcp_encoder(string payload, int FLAG)
 // 封包處理回呼函式
 void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
-    // Print in hex
-    // for (u_int i = 0; i < header->len; i++) {
-    //     std::cout << std::hex << std::setw(2) << std::setfill('0')
-    //               << (unsigned int)packet[i] << " ";
-    //     if ((i + 1) % 16 == 0) std::cout << std::endl;
-    // }
-    // std::cout << std::dec << std::endl << "--------------------------------" << std::endl;
-
     // 解析 Ethernet Header
     eth = (struct ether_header*) packet;
+    // cout << ntohs(eth->ether_type) << endl;
     if (ntohs(eth->ether_type) != ETHERTYPE_IP) {
-        cout << "not IP packet" << endl;
+        // cout <<"not IP packet" << endl;
         return; // 非 IP 封包
     }
 
     // 解析 IP Header
     iph = (struct ip*)(packet + sizeof(struct ether_header));
     if (iph->ip_p != IPPROTO_TCP) {
-        cout << "not TCP packet" << endl;
+        // cout << "not TCP packet" << endl;
         return; // 非 TCP 封包
     }
     // IP header 長度 (iph->ip_hl 是 32-bit word count，所以要 *4 才是 bytes)
     ip_header_len = iph->ip_hl * 4;
-    if (inet_ntoa(iph->ip_src) != inet_ntoa(remote_address)) {
-        cout << "target: " << inet_ntoa(remote_address) << " ; in: " << inet_ntoa(iph->ip_src) << " different src ip" << endl;
+    // cout << "target: " << inet_ntoa(remote_address) << " ; in: " << inet_ntoa(iph->ip_src) << endl;
+    // cout << "me: " << inet_ntoa(local_address) << " ; in: " << inet_ntoa(iph->ip_dst) << endl;
+    if (iph->ip_src.s_addr != remote_address.s_addr) {
+        // cout << "target: " << inet_ntoa(remote_address) << " ; in: " << inet_ntoa(iph->ip_src) << " different src ip" << endl;
         return;
     }
-    if (inet_ntoa(iph->ip_dst) != inet_ntoa(local_address)) {
-        cout << "me: " << inet_ntoa(local_address) << " ; in: " << inet_ntoa(iph->ip_dst) << " different dest ip" << endl;
+    if (iph->ip_dst.s_addr != local_address.s_addr) {
+        // cout << "me: " << inet_ntoa(local_address) << " ; in: " << inet_ntoa(iph->ip_dst) << " different dest ip" << endl;
         return;
     }
     
@@ -257,8 +263,10 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
     //     printf("%02x ", ptr[i]);
     // }
     if (tcph->th_dport != rcv_dst_port) {
-        cout << "target: " << rcv_dst_port << " ; in: " << tcph->th_sport << " different tcp" << std::endl;
+        cout << "target: " << ntohs(rcv_dst_port) << " ; in: " << ntohs(tcph->th_dport) << " different tcp" << std::endl;
         return;
+    } else {
+        cout << "target: " << ntohs(rcv_dst_port) << " ; in: " << ntohs(tcph->th_dport) << " same tcp" << std::endl;
     }
     std::cout << "Packet captured, length: " << header->len << " bytes" << std::endl;
     printf("Source MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -273,8 +281,19 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
          << " -> "
          << inet_ntoa(iph->ip_dst) << ":" << ntohs(tcph->th_dport)
          << endl;
+
+    // Print in hex
+    for (u_int i = 0; i < header->len; i++) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                  << (unsigned int)packet[i] << " ";
+        if ((i + 1) % 16 == 0) std::cout << std::endl;
+    }
+    std::cout << std::dec << std::endl << "--------------------------------" << std::endl;
+
     rcv_dst_port = tcph->th_dport;
     rcv_src_port = tcph->th_sport;
+    last_rcv_flag = rcv_flag;
+    rcv_flag = tcph->th_flags;
 
     tcp_header_len = tcph->doff * 4;
     char *payload = (char *)((u_char*)tcph + tcp_header_len);
@@ -283,13 +302,13 @@ void packet_handler(u_char *args, const struct pcap_pkthdr *header, const u_char
     app_msg = pl;
 
     receive_msg = true;
+    cout << receive_msg << endl;
     msg_sent = false;
 }
 
 void main_function()
 {
     bool established = false;
-    cout << 1 << std::endl;
     while (1) {
         // cout << 0;
         if (receive_msg && established) {
@@ -297,18 +316,28 @@ void main_function()
             // process(fix);
             sleep(3);
             cout << "<<PUSH>>" << std::endl;
+            cin >> app_msg;
             if (msg_sent)
                 tcp_encoder(app_msg, TH_PUSH);
             else
-                tcp_encoder(app_msg, TH_PUSH+TH_ACK);
+                tcp_encoder(app_msg, TH_PUSH | TH_ACK);
             msg_sent = true;
-        } else if (receive_msg && !established) {
+        } else if (receive_msg && !established && (rcv_flag & TH_SYN) && role == "server") {
+            if (rcv_flag & TH_SYN)
+                cout << "server rcv syn" << endl;
+            // if (role == "client")
             receive_msg = false;
             cout << "<<ACK>>" << std::endl;
-            tcp_encoder("", TH_ACK);
+            tcp_encoder("00", TH_ACK);
             established = true;
             msg_sent = true;
-        } else if (!receive_msg && !established) {
+        } else if (receive_msg && !established && (rcv_flag & TH_ACK) && role == "client") {
+            if (rcv_flag & TH_ACK)
+                cout << "client rcv ack" << endl;
+            receive_msg = true;
+            established = true;
+            msg_sent = false;
+        } else if (!receive_msg && !established && role == "client") {
             cout << "<<SYN>>" << std::endl;
             tcp_encoder("01234567890123456789", TH_SYN);
         }
@@ -321,7 +350,7 @@ void ack_function()
     while (1) {
         this_thread::sleep_for(chrono::milliseconds(3000));
         if (receive_msg) {
-            sleep(1);
+            sleep(1000);
             if (!msg_sent) {
                 cout << "ack" << std::endl;
                 tcp_encoder("", TH_ACK);
@@ -335,6 +364,9 @@ int main() {
     char errbuf[PCAP_ERRBUF_SIZE];
     const char *dev = "eth0"; // 可改成你要監聽的介面
     pcap_t *handle;
+    // 192.168.65.3
+    // 192.168.65.4
+    std::cin >> local_ip >> remote_ip >> role;
 
     std::thread main(main_function);
     main.detach();
@@ -348,8 +380,8 @@ int main() {
         return 1;
     }
     cout << "Listening on " << dev << "..." << endl;
-    local_address.s_addr = inet_addr("192.168.65.3");
-    remote_address.s_addr = inet_addr("192.168.65.3");
+    local_address.s_addr = inet_addr(local_ip.c_str());
+    remote_address.s_addr = inet_addr(remote_ip.c_str());
     rcv_dst_port = htons(9000);
 
     // 開始捕捉封包
