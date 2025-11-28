@@ -80,7 +80,7 @@
 - `make`
 - slove every syntax error in your program
 
-### Coding Rule (recommend)
+### Coding Style (recommend)
 - function: 
     ```c++
     void Function1()

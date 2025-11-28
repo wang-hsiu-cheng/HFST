@@ -6,14 +6,14 @@ int Session::RecvSinglePacket(std::string& outputPacket, unsigned int flags) {
     while (true) {
         // 先檢查內部 buffer 是否已經有完整封包
         size_t pos = findCompletePacket();
-        cout << "pos: "<< pos << endl;
+        // cout << "pos: "<< pos << endl;
         if (pos != MAX_SIZE) {
             // cout << "t2";
             // 取出完整封包
             outputPacket.assign(m_recvBuffer.begin(), m_recvBuffer.begin() + pos);
             // 移除已處理的資料
             m_recvBuffer.erase(m_recvBuffer.begin(), m_recvBuffer.begin() + pos);
-            std::cout << outputPacket << std::endl;
+            // std::cout << outputPacket << std::endl;
             return outputPacket.size();
         }
 

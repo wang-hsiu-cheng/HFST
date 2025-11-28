@@ -1,15 +1,17 @@
 #include "TaifexOrderClient.h"
+#include <fstream>
+#include <string>
 
 int Session::RecvSinglePacket(std::string& _outputPacket, unsigned int _flags) {
     _outputPacket.clear();
 
     while (true) {
         size_t pos = FindCompletePacket();
-        cout << "pos: "<< pos << endl;
+        // cout << "pos: "<< pos << endl;
         if (pos != MAX_SIZE) {
             _outputPacket.assign(m_recv_buffer.begin(), m_recv_buffer.begin() + pos);
             m_recv_buffer.erase(m_recv_buffer.begin(), m_recv_buffer.begin() + pos);
-            std::cout << _outputPacket << std::endl;
+            // std::cout << _outputPacket << std::endl;
             return _outputPacket.size();
         }
         ssize_t recvSize = recv(m_sockfd, reinterpret_cast<void*>(&m_tmp_recv_buffer[0]), MAX_SIZE, _flags);
@@ -34,6 +36,9 @@ int Session::SendPacket(const std::string &buf)
 
 int TaifexOrderClient::Start()
 {
+    std::ifstream inputFile;
+    inputFile.open("../data/test_data.txt"); 
+
     m_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_sockfd < 0) {
         std::cerr << "Socket creation failed\n";
@@ -214,7 +219,10 @@ int TaifexOrderClient::Start()
                     m_rcv = true;
                     std::string order_msg_type;
                     std::cout << "Input Order MsgType: ";
-                    std::cin >> order_msg_type;
+                    // std::cin >> order_msg_type;
+                    std::getline(inputFile, order_msg_type);
+                    cout << order_msg_type << endl;
+                    // std::this_thread::sleep_for(std::chrono::milliseconds(200));
                     is_waiting_order = false;
                     if (order_msg_type == "NewOrder") {
                         session->SendPacket(m_messenger.MakeD(buffer, m_hdr, session->GetMsgSeqNum()));
@@ -273,6 +281,7 @@ int TaifexOrderClient::Start()
                 break;
         }
     }
+    inputFile.close();
     printf("[SERVER] port %d, TargetCompID %s wait recv order\n", m_port, m_hdr.TargetCompID.c_str());
     return 0;
 }
