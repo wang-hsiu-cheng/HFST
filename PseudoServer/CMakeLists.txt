@@ -11,6 +11,9 @@ include_directories(include)
 # Add source files
 file(GLOB SOURCES "src/*.cpp")
 
+# Link pthread
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 # Create library
 add_library(TaifexOrder STATIC
   src/TaifexOrderServer.cpp
@@ -39,6 +42,7 @@ target_link_libraries(TaifexOrderServer
   TaifexOrderUtility
   TaifexORGenerator
   ServerMessenger
+  Threads::Threads
   ${ARMADILLO_LIBRARIES})
 
 # add_executable(TestClient src/TestClient.cpp)
