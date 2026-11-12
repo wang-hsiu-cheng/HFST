@@ -33,12 +33,15 @@ Msg_time_t TaifexOrderUtility::GetMsg_time_t()
 	auto now = std::chrono::system_clock::now();
 	std::time_t tNow = std::chrono::system_clock::to_time_t(now);
 	std::tm* tmLocal = std::localtime(&tNow);
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+		now.time_since_epoch()
+	) % 1000;
 
 	t.YYYY = tmLocal->tm_year;
 	t.MMDD = (tmLocal->tm_mon + 1) * 100 + tmLocal->tm_mday;
 	t.HH = tmLocal->tm_hour;
 	t.MM = tmLocal->tm_min;
-	t.SSsss = (float)tmLocal->tm_sec;
+	t.SSsss = (float)tmLocal->tm_sec + ms.count() / 1000.0f;
 
 	return t;
 }
@@ -56,7 +59,7 @@ Msg_time_t TaifexOrderUtility::GetMsg_time_t(const std::string& _time_str)
     // Seconds and milliseconds
     int seconds = std::stoi(_time_str.substr(15, 2));
     int millis  = std::stoi(_time_str.substr(18, 3));
-    t.SSsss = static_cast<float>(seconds + millis / 1000);
+    t.SSsss = static_cast<float>(seconds) + static_cast<float>(millis) / 1000.0f;
 
     return t;
 }

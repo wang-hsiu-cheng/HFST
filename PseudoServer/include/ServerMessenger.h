@@ -35,6 +35,10 @@ public:
     string MakeH(const std::string &buf, FIXhdr_t header, uint16_t serverSeqNum);
     string Make8(const std::string &buf, FIXhdr_t header, uint16_t serverSeqNum);
     string Make9(const std::string &buf, FIXhdr_t header, uint16_t serverSeqNum);
+    // Overloads carrying real values (used by the matching engine / market feed).
+    string Make8(FIX_8_t msg, FIXhdr_t header, uint16_t serverSeqNum);
+    string Make9(FIX_9_t msg, FIXhdr_t header, uint16_t serverSeqNum);
+    string MakeW(FIX_W_t msg, FIXhdr_t header, uint16_t serverSeqNum);
 
     string getChecksumFromFIX(const std::string& buf);
     int SearchMsgType(const std::string& buf, FIXhdr_t& header, FIX_2_t& resendRequest_msg, FIX_3_t& reject_msg);

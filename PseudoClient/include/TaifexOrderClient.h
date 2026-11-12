@@ -15,11 +15,15 @@
 #include <thread>
 #include <chrono>
 #include <map>
+#include <atomic>
+#include <condition_variable>
+#include <functional>
 
 #include "TaifexOrder.h"
 #include "TaifexOrderUtility.h"
 #include "TaifexORGenerator.h"
 #include "ClientMessenger.h"
+#include "ConsoleUI.h"
 
 class Session
 {
@@ -42,18 +46,22 @@ public:
     inline uint16_t GetMsgSeqNum() const { return m_msg_seq_num; }
 	int RecvSinglePacket(std::string& _outputBuffer, unsigned int _flags = 0);
     int SendPacket(const std::string &_buf);
+    // Build with the current MsgSeqNum and send under one lock, so the
+    // heartbeat thread, the command line and the receiver never interleave.
+    // Returns the packet that was sent (empty on failure).
+    std::string SendMsg(const std::function<std::string(uint16_t)>& _build, bool _quiet = false);
 
 private:
 	int m_sockfd;
 	uint16_t m_msg_seq_num;
-	
+    std::mutex m_send_mutex;
+
 	int m_currentPacketSize = 0;
-    
+
     std::string m_cur_recv_buffer_ptr;
     std::string m_recv_buffer;
     std::string m_tmp_recv_buffer;
     int m_recv_buffer_left_size = 0;
-    // 用於 search 查找 "10="
     const std::string fix_checksum_pattern = "10=";
 
     size_t FindCompletePacket() {
@@ -68,6 +76,20 @@ private:
     }
 };
 
+// Display-only view of an order, rebuilt from the 8/9 reports the client
+// decodes. The client makes no trading decisions with it.
+struct OrderView
+{
+    std::string root;        // first ClOrdID, used as the user-facing handle
+    std::string latestID;    // ClOrdID of the latest accepted request
+    std::string orderID;
+    std::string symbol;
+    char side = '1';
+    double qty = 0, px = 0, cumQty = 0, avgPx = 0;
+    std::string status = "PENDING";
+    std::string text;
+};
+
 class TaifexOrderClient
 {
 public:
@@ -75,7 +97,7 @@ public:
     : m_port(port)
     {
         m_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (m_sockfd < 0) 
+        if (m_sockfd < 0)
         {
             std::cerr << "Failed to create client socket." << std::endl;
             std::exit(EXIT_FAILURE);
@@ -108,14 +130,36 @@ public:
     std::vector<FIX_9_t>* Get9Vec() { return &m_vec_9; }
 
 private:
+    FIXhdr_t Hdr()
+    {
+        std::lock_guard<std::mutex> lock(m_hdr_mutex);
+        return m_hdr;
+    }
+    void SetState(State _next);
+
+    // command line (runs on its own thread)
+    void CommandLoop(std::shared_ptr<Session> _session);
+    bool Execute(std::shared_ptr<Session> _session, const std::string& _line);
+    void SendOrder(std::shared_ptr<Session> _session, char _type, OrderParams _p, const std::string& _root);
+    void PrintHelp();
+    void PrintQuotes();
+    void PrintOrders();
+    std::string NextClOrdID();
+
+    // decoded application messages
+    void OnExecutionReport(const std::string& _buf);
+    void OnCancelReject(const std::string& _buf);
+    void OnMarketData(const std::string& _buf);
+
     int m_sockfd;
     int m_port;
     std::string m_client_ip;
     FIXhdr_t m_hdr;
+    std::mutex m_hdr_mutex;
     FIX_A_t m_A_data;
     FIX_2_t m_2_data;
     FIX_3_t m_3_data;
-    State current_state;
+    std::atomic<State> current_state{State::Idle};
     OrderState current_order_state;
 
     std::map<int, uint16_t> m_map_idx_target_id;
@@ -125,7 +169,20 @@ private:
     bool m_en_hb = false;
     bool m_rcv = false;
     bool is_logon = false;
-    bool is_waiting_order = false;
+
+    // session lifecycle shared with the command thread
+    std::mutex m_life_mutex;
+    std::condition_variable m_life_cv;
+    bool m_running = true;
+    std::chrono::steady_clock::time_point m_logout_start;
+
+    // display caches (filled only from decoded server messages)
+    std::mutex m_view_mutex;
+    std::map<std::string, MDQuote> m_quotes;
+    std::map<std::string, OrderView> m_orders;          // root ClOrdID -> view
+    std::map<std::string, std::string> m_id_to_root;    // any ClOrdID -> root
+    int m_next_cl_ord_id = 1;
+    bool m_watch = false;
 
     int m_recv_D_cnt = 0;
     int m_recv_A_cnt = 0;

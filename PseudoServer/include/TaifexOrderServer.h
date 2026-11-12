@@ -15,11 +15,15 @@
 #include <thread>
 #include <chrono>
 #include <map>
+#include <atomic>
+#include <functional>
 
 #include "TaifexOrder.h"
 #include "TaifexOrderUtility.h"
 #include "TaifexORGenerator.h"
 #include "ServerMessenger.h"
+#include "MarketSimulator.h"
+#include "ConsoleUI.h"
 
 using namespace std;
 
@@ -47,21 +51,27 @@ public:
     int GetSockfd() const { return m_sockfd; }
     inline uint16_t GetMsgSeqNum() const { return m_msgSeqNum; }
     int GetSessionNum() const { return m_sessionNum; }
-	
+
     int RecvSinglePacket(std::string& outputBuffer, unsigned int flags = 0);
 
     int SendPacket(const std::string &buf);
+
+    // Build a message with the current outgoing MsgSeqNum and send it, all
+    // under one lock, so threads (receiver / heartbeat / market feed) never
+    // interleave sequence numbers. Logs the packet unless quiet.
+    int SendMsg(const std::function<std::string(uint16_t)>& build, bool quiet = false);
 
 private:
     int m_sockfd;
     int m_sessionNum;
     int m_listenPort;
     uint16_t m_msgSeqNum;
-	
+    std::mutex m_sendMutex;
+
     std::string m_cur_recvBufferPtr;
-	
+
     int m_currentPacketSize = 0;
-    
+
     std::string m_recvBuffer;
     std::string m_tmpRecvBuffer;
     int m_recvBufferLeftSize = 0;
@@ -83,17 +93,17 @@ private:
 class TaifexOrderServer
 {
 public:
-    TaifexOrderServer(std::string server_ip, int port, int expectedSessions)
-    : m_port(port), m_expectedSessions(expectedSessions)
+    TaifexOrderServer(int port, int expectedSessions)
+    : m_port(port), m_expectedSessions(expectedSessions), m_engine(m_market)
     {
         m_sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (m_sockfd < 0) 
+        if (m_sockfd < 0)
         {
             std::cerr << "Failed to create server socket." << std::endl;
             std::exit(EXIT_FAILURE);
         }
-
-        m_server_ip = server_ip;
+        int yes = 1;
+        setsockopt(m_sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
     }
 
     void SetUSDelayForReport(int us)
@@ -124,6 +134,9 @@ public:
         m_en_hb = false;
     }
 
+    void SetTickMs(int ms) { m_tick_ms = ms; }
+    void SetBoardSec(int sec) { m_board_sec = sec; }
+
     int GetRecvDCnt() const { return m_recv_D_cnt; }
     int GetRecvACnt() const { return m_recv_A_cnt; }
     int GetSent8Cnt() const { return m_sent_8_cnt; }
@@ -135,17 +148,29 @@ public:
     std::vector<FIX_9_t>* Get9Vec() { return &m_vec_9; }
 
 private:
+    // Copy of the session header, safe to call from any thread.
+    FIXhdr_t Hdr()
+    {
+        std::lock_guard<std::mutex> lock(m_hdrMutex);
+        return m_hdr;
+    }
+    void SetState(State next);
+    void HandleOrder(const std::shared_ptr<Session>& session, const std::string& buffer);
+    void SendExecEvent(const std::shared_ptr<Session>& session, const ExecEvent& e);
+    void MarketLoop(const std::shared_ptr<Session>& session, std::atomic<bool>& running);
+    void PrintBoard();
+
     int m_sockfd;
     int m_port;
     int m_expectedSessions;
     uint16_t serverSeqNum = 0;
-    std::string m_server_ip;
     std::string ClOrdID;
     FIXhdr_t m_hdr;
+    std::mutex m_hdrMutex;
     FIX_A_t m_A_data;
     FIX_2_t m_2_data;
     FIX_3_t m_3_data;
-    State currentState;
+    State currentState = State::Idle;
     OrderState currentOrderState;
 
     std::vector<std::shared_ptr<Session>> m_vec_sessions;
@@ -166,10 +191,13 @@ private:
     int m_sent_8_cnt = 0;
     int m_sent_9_cnt = 0;
     int m_sent_0_cnt = 0;
+    int m_exec_id = 0;
 
     int m_report_delay_us = 5;
 
     int m_heartbeat_interval_sec = 30;
+    int m_tick_ms = 1000;
+    int m_board_sec = 5;
 
     std::vector<FIX_D_t> m_vec_D;
 
@@ -178,6 +206,8 @@ private:
 
     ServerMessenger m_messenger;
     TaifexOrder order;
+    MarketSimulator m_market;
+    MatchingEngine m_engine;
 };
 
 #endif
