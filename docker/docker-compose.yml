@@ -19,7 +19,7 @@ services:
       - XAUTHORITY=/root/.Xauthority
     volumes:
       # Mount X11 server
-      - /d/.Xauthority:/root/.Xauthority
+      # - /d/.Xauthority:/root/.Xauthority
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       # Direct Rendering Infrastructure
       - /dev:/dev

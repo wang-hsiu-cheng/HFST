@@ -46,10 +46,10 @@
     4. open a new terminal & `docker exec -it hfst /bin/bash`
 2. Use
     1. open one terminal
-    2. `cd PseudoServer`
+    2. `cd PseudoServer/build`
     3. `./TaifexOrderServer`
     4. open another terminal
-    5. `cd PseudoClient`
+    5. `cd PseudoClient/build`
     6. `./TaifexOrderClient`
     7. Input order according to the following instruction
         |Order|Code|What you should input|what will receive|
