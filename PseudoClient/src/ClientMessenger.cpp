@@ -1,4 +1,196 @@
 #include "ClientMessenger.h"
+#include "ConsoleUI.h"
+
+#include <cmath>
+
+/* ---------------- user-parameter encoders (Order Out Register -> FIX) ----------------
+ * Same steps as the legacy MakeX functions: swap CompIDs, stamp seq/time,
+ * serialize, BodyLength = body size, then CheckSum. */
+
+static FIXhdr_t OutHeader(FIXhdr_t h, const std::string& msgType, uint16_t seq, TaifexOrderUtility& util)
+{
+    h.BeginString = "FIX.4.4";
+    h.MessageType = msgType;
+    h.MsgSeqNum = seq;
+    std::swap(h.SenderCompID, h.TargetCompID);
+    h.SendingTime = util.GetMsg_time_t();
+    return h;
+}
+
+static std::string Frame(const std::string& body, TaifexOrderUtility& util)
+{
+    std::string s = "8=FIX.4.4" + std::string(1, SOH) + "9=" + std::to_string(body.size()) + std::string(1, SOH) + body;
+    s.append("10=" + util.FIXComputeCheckSum(s) + std::string(1, SOH));
+    return s;
+}
+
+string ClientMessenger::MakeD(const OrderParams& p, FIXhdr_t _header, uint16_t _clientSeqNum)
+{
+    FIX_D_t d;
+    d.ClOrdID = p.ClOrdID;
+    d.OrderID = "Given by broker";
+    d.Account = "Given by broker";
+    d.Symbol = p.Symbol;
+    d.Side = p.Side;
+    d.TransactTime = util.GetMsg_time_t();
+    d.OrderQty = static_cast<float>(p.Qty);
+    d.OrderType = '2';
+    d.TimeInFource = '0';
+    d.Price = static_cast<float>(p.Price);
+    d.TwselvacnoFlag = '1';
+    d.TwseOrdType = '0';
+    d.TwseExCode = '0';
+    d.TwseRejStaleOrd = false;
+    d.Header = OutHeader(_header, "D", _clientSeqNum, util);
+    return Frame(gen.SerializeD(d), util);
+}
+
+string ClientMessenger::MakeF(const OrderParams& p, FIXhdr_t _header, uint16_t _clientSeqNum)
+{
+    FIX_F_t f;
+    f.ClOrdID = p.ClOrdID;
+    f.OrigClOrdID = p.OrigClOrdID;
+    f.OrderID = "Given by broker";
+    f.Account = "Given by broker";
+    f.Symbol = p.Symbol;
+    f.Side = p.Side;
+    f.TransactTime = util.GetMsg_time_t();
+    f.TwselvacnoFlag = '1';
+    f.TwseExCode = '0';
+    f.TwseRejStaleOrd = false;
+    f.Header = OutHeader(_header, "F", _clientSeqNum, util);
+    return Frame(gen.SerializeF(f), util);
+}
+
+string ClientMessenger::MakeG(const OrderParams& p, FIXhdr_t _header, uint16_t _clientSeqNum)
+{
+    FIX_G_t g;
+    g.ClOrdID = p.ClOrdID;
+    g.OrigClOrdID = p.OrigClOrdID;
+    g.OrderID = "Given by broker";
+    g.Account = "Given by broker";
+    g.Symbol = p.Symbol;
+    g.Side = p.Side;
+    g.TransactTime = util.GetMsg_time_t();
+    g.OrderQty = static_cast<float>(p.Qty);   // 0 = keep quantity
+    g.Price = static_cast<float>(p.Price);    // 0 = keep price
+    g.TwselvacnoFlag = '1';
+    g.TwseOrdType = '0';
+    g.TwseExCode = '0';
+    g.Header = OutHeader(_header, "G", _clientSeqNum, util);
+    return Frame(gen.SerializeG(g), util);
+}
+
+string ClientMessenger::MakeH(const OrderParams& p, FIXhdr_t _header, uint16_t _clientSeqNum)
+{
+    FIX_H_t h;
+    h.ClOrdID = p.ClOrdID;
+    h.OrderID = "Given by broker";
+    h.Symbol = p.Symbol;
+    h.Side = p.Side;
+    h.TwselvacnoFlag = '1';
+    h.TwseExCode = '0';
+    h.Header = OutHeader(_header, "H", _clientSeqNum, util);
+    return Frame(gen.SerializeH(h), util);
+}
+
+/* ---------------- decoders (FIX -> struct) ---------------- */
+
+static double ToNum(const std::string& s)
+{
+    try { return std::stod(s); } catch (...) { return 0; }
+}
+
+static std::vector<std::pair<std::string, std::string>> Fields(const std::string& msg)
+{
+    std::vector<std::pair<std::string, std::string>> out;
+    size_t pos = 0;
+    while (pos < msg.size()) {
+        size_t next = msg.find(SOH, pos);
+        if (next == std::string::npos)
+            break;
+        std::string tv = msg.substr(pos, next - pos);
+        size_t eq = tv.find('=');
+        if (eq != std::string::npos)
+            out.emplace_back(tv.substr(0, eq), tv.substr(eq + 1));
+        pos = next + 1;
+    }
+    return out;
+}
+
+bool ClientMessenger::Receive8(const std::string& msg, FIX_8_t& o)
+{
+    auto ch = [](const std::string& v) { return v.empty() ? '\0' : v[0]; };
+    for (const auto& kv : Fields(msg)) {
+        const std::string& t = kv.first;
+        const std::string& v = kv.second;
+        if (t == "35") o.Header.MessageType = v;
+        else if (t == "37") o.OrderID = v;
+        else if (t == "11") o.ClOrdID = v;
+        else if (t == "41") o.OrigClOrdID = v;
+        else if (t == "17") o.ExecID = v;
+        else if (t == "150") o.ExecType = ch(v);
+        else if (t == "39") o.OrdStatus = ch(v);
+        else if (t == "103") o.OrdRejReason = static_cast<uint16_t>(ToNum(v));
+        else if (t == "1") o.Account = v;
+        else if (t == "55") o.Symbol = v;
+        else if (t == "54") o.Side = ch(v);
+        else if (t == "38") o.OrderQty = ToNum(v);
+        else if (t == "40") o.OrdType = ch(v);
+        else if (t == "59") o.TimeInForce = ch(v);
+        else if (t == "44") o.Price = ToNum(v);
+        else if (t == "32") o.LastQty = ToNum(v);
+        else if (t == "31") o.LastPx = ToNum(v);
+        else if (t == "151") o.LeavesQty = ToNum(v);
+        else if (t == "14") o.CumQty = ToNum(v);
+        else if (t == "6") o.AvgPx = ToNum(v);
+        else if (t == "58") o.Text = v;
+        else if (t == "10") o.CheckSum = v;
+    }
+    return o.Header.MessageType == "8";
+}
+
+bool ClientMessenger::Receive9(const std::string& msg, FIX_9_t& o)
+{
+    for (const auto& kv : Fields(msg)) {
+        const std::string& t = kv.first;
+        const std::string& v = kv.second;
+        if (t == "35") o.Header.MessageType = v;
+        else if (t == "37") o.OrderID = v;
+        else if (t == "11") o.ClOrdID = v;
+        else if (t == "41") o.OrigClOrdID = v;
+        else if (t == "39") o.OrdStatus = v.empty() ? '\0' : v[0];
+        else if (t == "1") o.Account = v;
+        else if (t == "434") o.CxlRejResponseTo = v.empty() ? '\0' : v[0];
+        else if (t == "102") o.CxlRejReason = v.empty() ? 0 : static_cast<uint8_t>(v[0]);
+        else if (t == "58") o.Text = v;
+        else if (t == "10") o.CheckSum = v;
+    }
+    return o.Header.MessageType == "9";
+}
+
+bool ClientMessenger::ReceiveW(const std::string& msg, MDQuote& q)
+{
+    std::string type, entry;
+    for (const auto& kv : Fields(msg)) {
+        const std::string& t = kv.first;
+        const std::string& v = kv.second;
+        if (t == "35") type = v;
+        else if (t == "55") q.Symbol = v;
+        else if (t == "269") entry = v;   // starts a repeating-group entry
+        else if (t == "270") {
+            if (entry == "0") q.Bid = ToNum(v);
+            else if (entry == "1") q.Ask = ToNum(v);
+            else if (entry == "2") q.Last = ToNum(v);
+        }
+        else if (t == "271") {
+            if (entry == "0") q.BidSize = ToNum(v);
+            else if (entry == "1") q.AskSize = ToNum(v);
+            else if (entry == "2") q.Volume = ToNum(v);
+        }
+    }
+    return type == "W" && !q.Symbol.empty();
+}
 
 string ClientMessenger::MakeA(const std::string &_buf, FIXhdr_t _header, uint16_t _clientSeqNum)
 {
@@ -371,7 +563,7 @@ int ClientMessenger::SearchMsgType(const std::string& _buf, FIXhdr_t& _header, F
         std::string tag = clean(tagValue.substr(0, eqPos));
         std::string value = clean(tagValue.substr(eqPos + 1));
         tagNumber++;
-        std::cout << "tagNumber: " << tagNumber <<", tag: " << tag << ", value: " << value << std::endl;
+        ui::Log(ui::Lv::Debug, "decode tag#" + std::to_string(tagNumber) + " " + tag + "=" + value);
         if (tagNumber == 1 && tag == "8") {
             _header.BeginString = value;
             if (_header.BeginString != "FIX.4.4") {
@@ -392,7 +584,7 @@ int ClientMessenger::SearchMsgType(const std::string& _buf, FIXhdr_t& _header, F
         }
         else if (tagNumber == 4 && tag == "34") {
             if (STR_TO_INT(value) > _header.MsgSeqNum + 1) {
-                std::cout << "message sequence error, sned MsgType = 2" << std::endl;
+                ui::Log(ui::Lv::Warn, "sequence gap: expected " + std::to_string(_header.MsgSeqNum + 1) + ", got " + value + " -> send ResendRequest(2)");
                 resendRequest_msg.BeginSeqNo = _header.MsgSeqNum + 1;
                 resendRequest_msg.EndSeqNo = STR_TO_INT(value) - 1;
                 return 2;
@@ -412,7 +604,7 @@ int ClientMessenger::SearchMsgType(const std::string& _buf, FIXhdr_t& _header, F
             _header.SendingTime = util.GetMsg_time_t(value);
         }
         else {
-            std::cout << "tag order error, send MsgType = 5" << std::endl;
+            ui::Log(ui::Lv::Warn, "header tag order error at tag " + tag + " -> send Logout(5)");
             return 5;
         }
         pos = next + 1;
