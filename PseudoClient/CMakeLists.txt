@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include path
 include_directories(include)
+include_directories(../common/include)
+
+find_package(Threads REQUIRED)
 
 # Add source files
 file(GLOB SOURCES "src/*.cpp")
@@ -35,7 +38,8 @@ target_link_libraries(ClientMessenger
 
 # Create executable
 add_executable(TaifexOrderClient src/TaifexOrderClient.cpp)
-target_link_libraries(TaifexOrderClient 
+target_link_libraries(TaifexOrderClient
+  Threads::Threads
   TaifexOrderUtility
   TaifexORGenerator
   ClientMessenger

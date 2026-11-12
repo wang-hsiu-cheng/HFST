@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include path
 include_directories(include)
+include_directories(../common/include)
+
+find_package(Threads REQUIRED)
 
 # Add source files
 file(GLOB SOURCES "src/*.cpp")
@@ -34,8 +37,9 @@ target_link_libraries(ServerMessenger
   ${ARMADILLO_LIBRARIES})
 
 # Create executable
-add_executable(TaifexOrderServer src/TaifexOrderServer.cpp)
+add_executable(TaifexOrderServer src/TaifexOrderServer.cpp src/MarketSimulator.cpp)
 target_link_libraries(TaifexOrderServer
+  Threads::Threads
   TaifexOrderUtility
   TaifexORGenerator
   ServerMessenger
