@@ -103,7 +103,8 @@ struct TaifexOrder{
     std::map<std::string, std::string> FIXMsgType = {
         {"Logon", "A"}, {"Heartbeat", "0"}, {"TestRequest", "1"}, {"ResendRequest", "2"}, {"RejectSession", "3"}, 
         {"SequenceReset", "4"}, {"Logout", "5"}, {"NewOrder", "D"}, {"OrderCancelRequest", "F"}, {"OrderCancel", "G"}, 
-        {"OrderStatus", "H"}, {"ExecutionReport", "8"}, {"OrderCancelReject", "9"}, {"BusinessMessageReject", "j"}
+        {"OrderStatus", "H"}, {"ExecutionReport", "8"}, {"OrderCancelReject", "9"}, {"BusinessMessageReject", "j"},
+        {"MarketData", "W"}
     };
 };
 
@@ -337,6 +338,20 @@ typedef struct _FIX_j_t
     unsigned char CheckSum;          // 10
 } FIX_j_t;
 #pragma pack()
+
+// MarketDataSnapshotFullRefresh (35=W): one symbol, bid/offer/trade entries.
+typedef struct _FIX_W_t
+{
+    FIXhdr_t hdr;
+    std::string MDReqID;             // 262
+    std::string Symbol;              // 55
+    float BidPx;                     // 269=0 / 270
+    float BidSize;                   // 271
+    float OfferPx;                   // 269=1 / 270
+    float OfferSize;                 // 271
+    float LastPx;                    // 269=2 / 270
+    float LastSize;                  // 271
+} FIX_W_t;
 
 #pragma pack(1)
 typedef struct _FIX_MsgTime_t

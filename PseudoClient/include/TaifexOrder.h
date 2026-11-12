@@ -105,7 +105,8 @@ struct TaifexOrder{
     std::map<std::string, std::string> FIXMsgType = {
         {"Logon", "A"}, {"Heartbeat", "0"}, {"TestRequest", "1"}, {"ResendRequest", "2"}, {"RejectSession", "3"}, 
         {"SequenceReset", "4"}, {"Logout", "5"}, {"NewOrder", "D"}, {"OrderCancelRequest", "F"}, {"OrderCancel", "G"}, 
-        {"OrderStatus", "H"}, {"ExecutionReport", "8"}, {"OrderCancelReject", "9"}, {"BusinessMessageReject", "j"}
+        {"OrderStatus", "H"}, {"ExecutionReport", "8"}, {"OrderCancelReject", "9"}, {"BusinessMessageReject", "j"},
+        {"MarketData", "W"}
     };
 };
 

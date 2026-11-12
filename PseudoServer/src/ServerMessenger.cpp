@@ -1,4 +1,56 @@
 #include "ServerMessenger.h"
+#include "ConsoleUI.h"
+
+// SearchMsgType accepts a packet only when BodyLength == packet size - 22
+// (see the BodyLength check below). Make8 compensates with "+1"; this helper
+// picks the value that satisfies the check for any digit count, so the new
+// messages decode with the existing Golden Reference logic unchanged.
+static std::string CompatBodyLength(size_t bodySize)
+{
+    for (size_t digits = 1; digits <= 6; digits++) {
+        size_t bl = bodySize + digits - 2;
+        if (std::to_string(bl).size() == digits)
+            return std::to_string(bl);
+    }
+    return std::to_string(bodySize);
+}
+
+static FIXhdr_t ReplyHeader(FIXhdr_t hdr, const std::string& msgType, uint16_t seq, TaifexOrderUtility& util)
+{
+    hdr.BeginString = "FIX.4.4";
+    hdr.MessageType = msgType;
+    hdr.MsgSeqNum = seq;
+    std::swap(hdr.SenderCompID, hdr.TargetCompID);
+    hdr.SendingTime = util.GetMsg_time_t();
+    return hdr;
+}
+
+static std::string Frame(const std::string& body, TaifexOrderUtility& util)
+{
+    std::string s = "8=FIX.4.4" + std::string(1, SOH) + "9=" + CompatBodyLength(body.size()) + std::string(1, SOH) + body;
+    s.append("10=" + util.FIXComputeCheckSum(s) + std::string(1, SOH));
+    return s;
+}
+
+string ServerMessenger::Make8(FIX_8_t msg, FIXhdr_t hdr, uint16_t serverSeqNum)
+{
+    msg.hdr = ReplyHeader(hdr, "8", serverSeqNum, util);
+    msg.TransactTime = util.GetMsg_time_t();
+    return Frame(gen.Serialize8(msg), util);
+}
+
+string ServerMessenger::Make9(FIX_9_t msg, FIXhdr_t hdr, uint16_t serverSeqNum)
+{
+    msg.hdr = ReplyHeader(hdr, "9", serverSeqNum, util);
+    msg.TransactTime = util.GetMsg_time_t();
+    return Frame(gen.Serialize9(msg), util);
+}
+
+string ServerMessenger::MakeW(FIX_W_t msg, FIXhdr_t hdr, uint16_t serverSeqNum)
+{
+    msg.hdr = ReplyHeader(hdr, "W", serverSeqNum, util);
+    return Frame(gen.SerializeW(msg), util);
+}
 
 string ServerMessenger::MakeA(const std::string &buf, FIXhdr_t hdr, uint16_t serverSeqNum)
 {
@@ -445,7 +497,7 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& hdr, FIX_2_
         std::string tag = tagValue.substr(0, eqPos);
         std::string value = tagValue.substr(eqPos + 1);
         tagNumber++;
-        std::cout << "tagNumber: " << tagNumber <<", tag: " << tag << ", value: " << value << std::endl;
+        ui::Log(ui::Lv::Debug, "decode tag#" + std::to_string(tagNumber) + " " + tag + "=" + value);
         if (tagNumber == 1 && tag == "8") {
             hdr.BeginString = value;
             if (hdr.BeginString != "FIX.4.4")
@@ -465,7 +517,7 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& hdr, FIX_2_
         }
         else if (tagNumber == 4 && tag == "34") {
             if (STR_TO_INT(value) > hdr.MsgSeqNum + 1) {
-                std::cout << "message sequence error, sned MsgType = 2" << std::endl;
+                ui::Log(ui::Lv::Warn, "sequence gap: expected " + std::to_string(hdr.MsgSeqNum + 1) + ", got " + value + " -> send ResendRequest(2)");
                 resendRequest_msg.BeginSeqNo = hdr.MsgSeqNum + 1;
                 resendRequest_msg.EndSeqNo = STR_TO_INT(value) - 1;
                 return 2;
@@ -485,7 +537,7 @@ int ServerMessenger::SearchMsgType(const std::string& buf, FIXhdr_t& hdr, FIX_2_
             hdr.SendingTime = util.GetMsg_time_t(value);
         }
         else {
-            std::cout << "tag order error, send MsgType = 5" << std::endl;
+            ui::Log(ui::Lv::Warn, "header tag order error at tag " + tag + " -> send Logout(5)");
             return 5;
         }
         pos = next + 1;

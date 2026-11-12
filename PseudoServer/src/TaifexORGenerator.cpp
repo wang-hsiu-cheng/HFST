@@ -189,6 +189,18 @@ std::string TaifexORGenerator::Serializej(const FIX_j_t& msg) {
     return oss.str();
 }
 
+std::string TaifexORGenerator::SerializeW(const FIX_W_t& msg) {
+    std::ostringstream oss;
+    oss << SerializeHeader(msg.hdr);
+    oss << "262=" << msg.MDReqID   << '';
+    oss << "55="  << msg.Symbol    << '';
+    oss << "268=" << 3             << '';
+    oss << "269=0" << '' << "270=" << msg.BidPx   << '' << "271=" << msg.BidSize   << '';
+    oss << "269=1" << '' << "270=" << msg.OfferPx << '' << "271=" << msg.OfferSize << '';
+    oss << "269=2" << '' << "270=" << msg.LastPx  << '' << "271=" << msg.LastSize  << '';
+    return oss.str();
+}
+
 // void TaifexORGenerator::AddSessionID(uint16_t v)
 // {
 //     if(std::find(m_vec_sessionID.begin(), m_vec_sessionID.end(), v) == m_vec_sessionID.end())

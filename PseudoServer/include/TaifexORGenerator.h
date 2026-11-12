@@ -49,6 +49,7 @@ public:
     std::string Serialize8(const FIX_8_t& msg);
     std::string Serialize9(const FIX_9_t& msg);
     std::string Serializej(const FIX_j_t& msg);
+    std::string SerializeW(const FIX_W_t& msg);
 
     inline int GetPassword(std::string SenderCompID)
     {
