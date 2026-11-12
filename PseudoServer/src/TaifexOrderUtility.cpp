@@ -91,7 +91,7 @@ Msg_time_t TaifexOrderUtility::GetMsg_time_t(const std::string& timeStr)
     // Seconds and milliseconds
     int seconds = std::stoi(timeStr.substr(15, 2));
     int millis  = std::stoi(timeStr.substr(18, 3));
-    t.SSsss = static_cast<float>(seconds + millis / 1000);
+    t.SSsss = static_cast<float>(seconds) + static_cast<float>(millis) / 1000.0f;
 
     return t;
 }
