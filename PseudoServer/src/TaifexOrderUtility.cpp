@@ -65,12 +65,15 @@ Msg_time_t TaifexOrderUtility::GetMsg_time_t()
 	auto now = std::chrono::system_clock::now();
 	std::time_t now_t = std::chrono::system_clock::to_time_t(now);
 	std::tm* local_tm = std::localtime(&now_t);
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+		now.time_since_epoch()
+	) % 1000;
 
 	t.YYYY = local_tm->tm_year;
 	t.MMDD = (local_tm->tm_mon + 1) * 100 + local_tm->tm_mday;
 	t.HH = local_tm->tm_hour;
 	t.MM = local_tm->tm_min;
-	t.SSsss = (float)local_tm->tm_sec;
+	t.SSsss = (float)local_tm->tm_sec + ms.count() / 1000.0f;
 
 	return t;
 }

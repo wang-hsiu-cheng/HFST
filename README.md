@@ -120,7 +120,7 @@ Scripted run (stdin closed -> automatic logout):
 - `make`
 - slove every syntax error in your program
 
-### Coding Rule (recommend)
+### Coding Style (recommend)
 - function: 
     ```c++
     void Function1()

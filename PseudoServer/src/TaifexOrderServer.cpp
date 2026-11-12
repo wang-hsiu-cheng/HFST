@@ -245,7 +245,7 @@ int TaifexOrderServer::Start()
 {
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(m_server_ip.c_str());
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     serverAddr.sin_port = htons(m_port);
     if (bind(m_sockfd, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) < 0)
     {
@@ -266,7 +266,7 @@ int TaifexOrderServer::Start()
             symbols += q.symbol + " ";
         Block({C(ansi::Bold) + "==============================================================" + C(ansi::Reset),
                C(ansi::Bold) + "  HFST Pseudo Exchange (FIX 4.4)" + C(ansi::Reset),
-               "  listening  : " + m_server_ip + ":" + std::to_string(m_port) + "  (" +
+               "  listening  : 0.0.0.0:" + std::to_string(m_port) + "  (" +
                    std::to_string(m_expectedSessions) + " session(s))",
                "  symbols    : " + symbols,
                "  market tick: " + std::to_string(m_tick_ms) + " ms, board every " + std::to_string(m_board_sec) + " s",
@@ -561,7 +561,7 @@ int main(int argc, char* argv[])
         else { PrintUsage(); return a == "--help" || a == "-h" ? 0 : 1; }
     }
 
-    TaifexOrderServer server("127.0.0.1", port, sessions);
+    TaifexOrderServer server(port, sessions);
     server.SetTickMs(std::max(50, tickMs));
     server.SetBoardSec(boardSec);
     server.Start();
